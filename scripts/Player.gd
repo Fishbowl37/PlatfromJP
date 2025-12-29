@@ -66,6 +66,13 @@ var trail_color: Color = Color(0.4, 0.6, 1.0, 0.5)
 var target_scale: Vector2 = Vector2.ONE
 var current_visual_scale: Vector2 = Vector2.ONE
 
+# Big jump roller effect
+const BIG_JUMP_THRESHOLD: int = 10  # More than 10 platforms = big jump
+var last_landing_floor_number: int = 0
+var consecutive_big_jumps: int = 0
+var is_rolling: bool = false
+var roll_rotation: float = 0.0
+
 # References
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -221,8 +228,154 @@ func on_landed() -> void:
 	# Notify the floor we landed on it
 	if current_floor:
 		current_floor.on_player_landed(self)
+		
+		# Check for big jump (jumped more than 10 platforms)
+		check_big_jump(current_floor.floor_number)
 	
 	GameManager.play_sound("land")
+
+func check_big_jump(new_floor_number: int) -> void:
+	if last_landing_floor_number > 0 and new_floor_number > last_landing_floor_number:
+		var floors_jumped = new_floor_number - last_landing_floor_number
+		
+		if floors_jumped > BIG_JUMP_THRESHOLD:
+			consecutive_big_jumps += 1
+			
+			# Two big jumps in a row = ROLLER!
+			if consecutive_big_jumps >= 2:
+				start_roller_effect()
+				consecutive_big_jumps = 0  # Reset after triggering
+		else:
+			consecutive_big_jumps = 0  # Reset if jump wasn't big
+	
+	last_landing_floor_number = new_floor_number
+
+func start_roller_effect() -> void:
+	if is_rolling:
+		return
+	
+	is_rolling = true
+	roll_rotation = 0.0
+	
+	# Spawn burst effect
+	spawn_roller_burst()
+	
+	# Create a tween for the rolling animation (full 360 spin + extra flair)
+	var roll_tween = create_tween()
+	roll_tween.set_ease(Tween.EASE_IN_OUT)
+	roll_tween.set_trans(Tween.TRANS_SINE)
+	
+	# Spin 720 degrees (2 full rotations) - slower so player can see it
+	roll_tween.tween_property(self, "roll_rotation", TAU * 2.0, 1.5)
+	roll_tween.tween_callback(func(): 
+		is_rolling = false
+		roll_rotation = 0.0
+	)
+	
+	# Add a scale pulse for extra juice - also slower
+	var scale_tween = create_tween()
+	scale_tween.tween_property(self, "target_scale", Vector2(1.3, 0.7), 0.2)
+	scale_tween.tween_property(self, "target_scale", Vector2(0.8, 1.2), 0.3)
+	scale_tween.tween_property(self, "target_scale", Vector2.ONE, 1.0).set_trans(Tween.TRANS_ELASTIC)
+	
+	# Spawn trail particles during roll
+	spawn_roller_trails()
+	
+	# Play a sound if available
+	GameManager.play_sound("jump")
+
+func spawn_roller_burst() -> void:
+	# Create expanding ring effect
+	var ring = create_burst_ring()
+	get_parent().add_child(ring)
+	ring.global_position = global_position
+	
+	# Create radial particle burst
+	var num_particles = 12
+	for i in range(num_particles):
+		var angle = (TAU / num_particles) * i
+		var particle = ColorRect.new()
+		particle.size = Vector2(8, 8)
+		particle.color = Color(1.0, 0.85, 0.3, 0.9)  # Golden color
+		particle.position = global_position - Vector2(4, 4)
+		particle.pivot_offset = Vector2(4, 4)
+		particle.rotation = angle
+		get_parent().add_child(particle)
+		
+		# Animate outward
+		var direction = Vector2(cos(angle), sin(angle))
+		var end_pos = particle.position + direction * 80
+		
+		var tween = get_tree().create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(particle, "position", end_pos, 0.4).set_ease(Tween.EASE_OUT)
+		tween.tween_property(particle, "modulate:a", 0.0, 0.4)
+		tween.tween_property(particle, "scale", Vector2(0.3, 0.3), 0.4)
+		tween.chain().tween_callback(particle.queue_free)
+
+func create_burst_ring() -> Node2D:
+	# Create a ring that expands outward
+	var ring_container = Node2D.new()
+	
+	# Multiple ring segments for a dashed ring look
+	var segments = 16
+	for i in range(segments):
+		var angle = (TAU / segments) * i
+		var segment = ColorRect.new()
+		segment.size = Vector2(12, 4)
+		segment.color = Color(1.0, 0.9, 0.4, 0.8)
+		segment.pivot_offset = Vector2(6, 2)
+		segment.rotation = angle
+		segment.position = Vector2(cos(angle), sin(angle)) * 20 - Vector2(6, 2)
+		ring_container.add_child(segment)
+	
+	# Animate the ring expanding and fading
+	var tween = get_tree().create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(ring_container, "scale", Vector2(4, 4), 0.5).set_ease(Tween.EASE_OUT)
+	tween.tween_property(ring_container, "modulate:a", 0.0, 0.5)
+	tween.chain().tween_callback(ring_container.queue_free)
+	
+	return ring_container
+
+func spawn_roller_trails() -> void:
+	# Spawn sparkle trails during the roll
+	var trail_count = 8
+	for i in range(trail_count):
+		# Delay each trail spawn
+		get_tree().create_timer(i * 0.15).timeout.connect(func():
+			if is_rolling:
+				spawn_single_roller_trail()
+		)
+
+func spawn_single_roller_trail() -> void:
+	# Spawn a few sparkles around the player
+	for j in range(3):
+		var sparkle = ColorRect.new()
+		sparkle.size = Vector2(6, 6)
+		
+		# Alternate colors for variety
+		var colors = [
+			Color(1.0, 0.85, 0.3, 0.8),   # Gold
+			Color(1.0, 0.95, 0.6, 0.8),   # Light gold
+			Color(1.0, 0.7, 0.2, 0.8)     # Orange gold
+		]
+		sparkle.color = colors[j % colors.size()]
+		
+		# Random offset around player
+		var offset = Vector2(randf_range(-25, 25), randf_range(-25, 25))
+		sparkle.position = global_position + offset - Vector2(3, 3)
+		sparkle.pivot_offset = Vector2(3, 3)
+		
+		get_parent().add_child(sparkle)
+		
+		# Animate upward and fade
+		var tween = get_tree().create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(sparkle, "position:y", sparkle.position.y - 40, 0.5)
+		tween.tween_property(sparkle, "modulate:a", 0.0, 0.5)
+		tween.tween_property(sparkle, "rotation", randf_range(-PI, PI), 0.5)
+		tween.chain().tween_callback(sparkle.queue_free)
 
 func detect_current_floor() -> void:
 	if not is_on_floor():
@@ -283,6 +436,12 @@ func update_visual_effects(delta: float) -> void:
 	if sprite:
 		# Apply squash/stretch on top of base scale
 		sprite.scale = Vector2(0.5, 0.5) * current_visual_scale
+		
+		# Apply roller rotation
+		if is_rolling:
+			sprite.rotation = roll_rotation
+		else:
+			sprite.rotation = 0.0
 		
 		# Visual effects based on state
 		if is_mega_jump_active:
@@ -356,9 +515,15 @@ func reset(spawn_position: Vector2) -> void:
 	touch_jump_pressed = false
 	coyote_timer = 0.0
 	jump_buffer_timer = 0.0
+	# Reset big jump roller tracking
+	last_landing_floor_number = 0
+	consecutive_big_jumps = 0
+	is_rolling = false
+	roll_rotation = 0.0
 	if sprite:
 		sprite.modulate = Color(1, 1, 1, 1)
 		sprite.scale = Vector2(0.5, 0.5)
+		sprite.rotation = 0.0
 		sprite.play("idle")
 	set_physics_process(true)
 
