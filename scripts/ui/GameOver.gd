@@ -1,0 +1,120 @@
+extends CanvasLayer
+class_name GameOverScreen
+
+signal restart_requested
+signal menu_requested
+
+@onready var panel: PanelContainer = $Panel
+@onready var title_label: Label = $Panel/MarginContainer/VBoxContainer/TitleLabel
+@onready var score_label: Label = $Panel/MarginContainer/VBoxContainer/ScoreLabel
+@onready var best_label: Label = $Panel/MarginContainer/VBoxContainer/BestLabel
+@onready var floor_label: Label = $Panel/MarginContainer/VBoxContainer/FloorLabel
+@onready var restart_button: Button = $Panel/MarginContainer/VBoxContainer/RestartButton
+@onready var menu_button: Button = $Panel/MarginContainer/VBoxContainer/MenuButton
+@onready var dimmer: ColorRect = $Dimmer
+
+var final_score: int = 0
+var final_floor: int = 0
+var is_new_best: bool = false
+
+func _ready() -> void:
+	visible = false
+	
+	if restart_button:
+		restart_button.pressed.connect(_on_restart_pressed)
+	if menu_button:
+		menu_button.pressed.connect(_on_menu_pressed)
+
+func format_number(num: int) -> String:
+	var str_num = str(num)
+	var result = ""
+	var count = 0
+	for i in range(str_num.length() - 1, -1, -1):
+		if count > 0 and count % 3 == 0:
+			result = "," + result
+		result = str_num[i] + result
+		count += 1
+	return result
+
+func show_game_over(score: int, floor_reached: int, best_score: int) -> void:
+	final_score = score
+	final_floor = floor_reached
+	is_new_best = score > best_score
+	
+	# Update labels
+	if score_label:
+		score_label.text = format_number(score)
+	if floor_label:
+		floor_label.text = "FLOOR: %d" % floor_reached
+	if best_label:
+		if is_new_best:
+			best_label.text = "★ NEW BEST! ★"
+			best_label.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
+		else:
+			best_label.text = "★ BEST: %s ★" % format_number(best_score)
+			best_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
+	
+	# Show with animation
+	visible = true
+	
+	# Fade in dimmer
+	if dimmer:
+		dimmer.modulate.a = 0
+		var dim_tween = create_tween()
+		dim_tween.tween_property(dimmer, "modulate:a", 1.0, 0.3)
+	
+	# Animate panel entrance
+	if panel:
+		panel.modulate.a = 0
+		panel.scale = Vector2(0.7, 0.7)
+		panel.pivot_offset = panel.size / 2
+		
+		var tween = create_tween()
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.set_parallel(true)
+		tween.tween_property(panel, "modulate:a", 1.0, 0.4)
+		tween.tween_property(panel, "scale", Vector2(1.0, 1.0), 0.5)
+	
+	# Animate title shake if new best
+	if is_new_best and title_label:
+		title_label.text = "NEW RECORD!"
+		title_label.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
+		
+		# Celebration shake
+		var shake_tween = create_tween()
+		shake_tween.set_loops(3)
+		shake_tween.tween_property(title_label, "rotation", 0.05, 0.1)
+		shake_tween.tween_property(title_label, "rotation", -0.05, 0.1)
+		shake_tween.tween_property(title_label, "rotation", 0.0, 0.1)
+
+func hide_game_over() -> void:
+	if panel:
+		var tween = create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(panel, "modulate:a", 0.0, 0.2)
+		tween.tween_property(panel, "scale", Vector2(0.8, 0.8), 0.2)
+		if dimmer:
+			tween.tween_property(dimmer, "modulate:a", 0.0, 0.2)
+		tween.chain().tween_callback(func(): visible = false)
+	else:
+		visible = false
+
+func _on_restart_pressed() -> void:
+	hide_game_over()
+	restart_requested.emit()
+
+func _on_menu_pressed() -> void:
+	hide_game_over()
+	menu_requested.emit()
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	
+	# Quick restart on any tap (except buttons)
+	if event is InputEventScreenTouch and event.pressed:
+		# Small delay to allow button presses
+		await get_tree().create_timer(0.1).timeout
+		if visible and not (restart_button and restart_button.is_hovered()):
+			_on_restart_pressed()

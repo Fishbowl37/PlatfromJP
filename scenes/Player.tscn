@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3 uid="uid://player123"]
+
+[ext_resource type="Script" path="res://scripts/Player.gd" id="1_player"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/player/player_frames.tres" id="2_frames"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(20, 24)
+
+[sub_resource type="Gradient" id="Gradient_particles"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_particles"]
+gradient = SubResource("Gradient_particles")
+
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 6
+script = ExtResource("1_player")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -28)
+scale = Vector2(0.5, 0.5)
+sprite_frames = ExtResource("2_frames")
+animation = &"idle"
+autoplay = "idle"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -12)
+shape = SubResource("RectangleShape2D_player")
+
+[node name="JumpParticles" type="GPUParticles2D" parent="."]
+emitting = false
+amount = 8
+one_shot = true
+explosiveness = 0.9
+lifetime = 0.3
+visibility_rect = Rect2(-50, -10, 100, 20)

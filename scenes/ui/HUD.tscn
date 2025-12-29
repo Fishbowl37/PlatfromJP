@@ -1,0 +1,197 @@
+[gd_scene load_steps=8 format=3 uid="uid://hud123"]
+
+[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="1_hud"]
+
+[sub_resource type="Gradient" id="Gradient_stars"]
+offsets = PackedFloat32Array(0, 0.3, 0.6, 1)
+colors = PackedColorArray(1, 1, 0.5, 1, 1, 0.7, 0.2, 1, 1, 0.3, 0.5, 1, 0.5, 0.2, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_stars"]
+gradient = SubResource("Gradient_stars")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_stars"]
+emission_shape = 3
+emission_box_extents = Vector3(200, 80, 1)
+direction = Vector3(0, -1, 0)
+spread = 180.0
+initial_velocity_min = 250.0
+initial_velocity_max = 600.0
+gravity = Vector3(0, 400, 0)
+scale_min = 5.0
+scale_max = 14.0
+color = Color(1, 0.9, 0.2, 1)
+hue_variation_min = -0.15
+hue_variation_max = 0.15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
+bg_color = Color(0.08, 0.06, 0.18, 0.95)
+border_width_bottom = 3
+border_color = Color(0.4, 0.2, 0.8, 0.8)
+corner_radius_bottom_left = 12
+corner_radius_bottom_right = 12
+shadow_color = Color(0.3, 0.1, 0.6, 0.4)
+shadow_size = 8
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_combo"]
+bg_color = Color(1, 0.3, 0.1, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.8, 0.3, 1)
+corner_radius_left = 16
+corner_radius_top = 16
+corner_radius_right = 16
+corner_radius_bottom = 16
+shadow_color = Color(1, 0.4, 0.1, 0.5)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_combobar_bg"]
+bg_color = Color(0.15, 0.1, 0.25, 0.8)
+corner_radius_left = 4
+corner_radius_top = 4
+corner_radius_right = 4
+corner_radius_bottom = 4
+
+[node name="HUD" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="SpinContainer" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="PanelContainer" parent="SpinContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
+
+[node name="MarginContainer" type="MarginContainer" parent="SpinContainer/TopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 8
+
+[node name="HBoxContainer" type="HBoxContainer" parent="SpinContainer/TopBar/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="ScoreContainer" type="VBoxContainer" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = -2
+
+[node name="ScoreTitle" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/ScoreContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.5, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "SCORE"
+
+[node name="ScoreLabel" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/ScoreContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.3, 0.1, 0.5, 0.8)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 32
+text = "0"
+
+[node name="Divider" type="VSeparator" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
+modulate = Color(0.5, 0.3, 0.8, 0.6)
+layout_mode = 2
+
+[node name="FloorContainer" type="VBoxContainer" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = -2
+
+[node name="FloorTitle" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/FloorContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "FLOOR"
+
+[node name="FloorLabel" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/FloorContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.95, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0.2, 0.4, 0.8)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 32
+text = "0"
+
+[node name="StreakIndicator" type="Control" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
+visible = false
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="StreakIcon" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/StreakIndicator"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 28
+text = "🔥"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ComboContainer" type="PanelContainer" parent="SpinContainer"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -100.0
+offset_top = 80.0
+offset_right = 100.0
+offset_bottom = 140.0
+grow_horizontal = 2
+pivot_offset = Vector2(100, 30)
+theme_override_styles/panel = SubResource("StyleBoxFlat_combo")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="SpinContainer/ComboContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ComboLabel" type="Label" parent="SpinContainer/ComboContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.3, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 32
+text = "x2 FLOORS"
+horizontal_alignment = 1
+
+[node name="ComboBar" type="ProgressBar" parent="SpinContainer/ComboContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_combobar_bg")
+value = 100.0
+show_percentage = false
+
+[node name="StarParticles" type="GPUParticles2D" parent="."]
+position = Vector2(240, 450)
+emitting = false
+amount = 80
+process_material = SubResource("ParticleProcessMaterial_stars")
+lifetime = 1.2
+one_shot = true
+explosiveness = 1.0
+randomness = 0.6
+visibility_rect = Rect2(-300, -500, 600, 1000)
+local_coords = false
+color_ramp = SubResource("GradientTexture1D_stars")
+
