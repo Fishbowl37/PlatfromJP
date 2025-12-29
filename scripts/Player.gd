@@ -96,15 +96,19 @@ func _physics_process(delta: float) -> void:
 	update_visual_effects(delta)
 
 func smooth_touch_input(delta: float) -> void:
-	# Smooth the raw touch input for responsive yet smooth control
-	var smooth_speed = 18.0  # Higher = more responsive, lower = smoother
+	# Very responsive smoothing for snappy mobile controls
+	var smooth_speed = 25.0  # High value for near-instant response
 	
 	if abs(touch_direction) > 0.01:
-		# Smoothly move toward target direction
+		# Nearly instant response to input
 		smoothed_touch_direction = lerp(smoothed_touch_direction, touch_direction, delta * smooth_speed)
 	else:
-		# Return to zero faster when not touching
-		smoothed_touch_direction = lerp(smoothed_touch_direction, 0.0, delta * smooth_speed * 1.5)
+		# Quick stop when releasing - feels responsive
+		smoothed_touch_direction = lerp(smoothed_touch_direction, 0.0, delta * smooth_speed * 2.0)
+	
+	# Snap to zero if very close (prevents micro-drift)
+	if abs(smoothed_touch_direction) < 0.02:
+		smoothed_touch_direction = 0.0
 
 func apply_gravity(delta: float) -> void:
 	if not is_on_floor():
@@ -124,11 +128,10 @@ func handle_movement(delta: float) -> void:
 	
 	if abs(direction) > 0.01:
 		# Analog input: direction value scales the target speed
-		# Full joystick = full speed, half joystick = half speed
 		var target_velocity = direction * run_speed
 		
-		# Use higher acceleration for more responsive mobile controls
-		var mobile_acceleration = current_acceleration * 1.3
+		# Snappy acceleration for responsive mobile controls
+		var mobile_acceleration = current_acceleration * 1.5
 		velocity.x = move_toward(velocity.x, target_velocity, mobile_acceleration * delta)
 	else:
 		var active_friction = current_friction_value if is_on_floor() else air_friction
