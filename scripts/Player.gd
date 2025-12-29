@@ -7,10 +7,10 @@ signal power_up_collected(power_up: PowerUp)
 
 # Movement parameters
 @export_group("Movement")
-@export var run_speed: float = 350.0
-@export var acceleration: float = 2000.0
-@export var friction: float = 1500.0
-@export var air_friction: float = 200.0
+@export var run_speed: float = 380.0
+@export var acceleration: float = 4000.0  # Very fast acceleration
+@export var friction: float = 2000.0
+@export var air_friction: float = 100.0   # Keep momentum in air
 
 # Ice platform movement
 @export_group("Ice Physics")
@@ -115,17 +115,16 @@ func handle_movement(delta: float) -> void:
 	var current_acceleration = ice_acceleration if is_on_ice else acceleration
 	var current_friction_value = ice_friction if is_on_ice else friction
 	
-	if abs(direction) > 0.005:
-		# Analog input: direction value scales the target speed
+	if abs(direction) > 0.01:
 		var target_velocity = direction * run_speed
 		
-		# Very fast acceleration for instant mobile response
-		var mobile_acceleration = current_acceleration * 2.5
-		velocity.x = move_toward(velocity.x, target_velocity, mobile_acceleration * delta)
+		# Instant acceleration - feels super responsive
+		var accel = current_acceleration * 3.0
+		velocity.x = move_toward(velocity.x, target_velocity, accel * delta)
 	else:
-		# Smooth deceleration
-		var active_friction = current_friction_value if is_on_floor() else air_friction
-		velocity.x = move_toward(velocity.x, 0, active_friction * delta)
+		# Quick stop on ground, keep momentum in air
+		var fric = current_friction_value if is_on_floor() else air_friction
+		velocity.x = move_toward(velocity.x, 0, fric * delta)
 
 func get_input_direction() -> float:
 	var keyboard_dir = Input.get_axis("move_left", "move_right")

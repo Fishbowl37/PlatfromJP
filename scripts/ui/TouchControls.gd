@@ -18,11 +18,6 @@ func _ready() -> void:
 func setup_joystick() -> void:
 	joystick = VirtualJoystick.new()
 	joystick.name = "VirtualJoystick"
-	
-	# Tuned for smooth, responsive mobile play
-	joystick.horizontal_sensitivity = 0.025  # Very sensitive horizontal
-	joystick.jump_drag_threshold = 20.0      # Easy jump trigger
-	
 	add_child(joystick)
 	
 	joystick.joystick_input.connect(_on_joystick_input)
