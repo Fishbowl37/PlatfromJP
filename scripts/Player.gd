@@ -41,7 +41,8 @@ signal power_up_collected(power_up: PowerUp)
 var is_jumping: bool = false
 var was_on_floor: bool = false
 var last_floor_y: float = 0.0
-var touch_direction: float = 0.0
+var touch_direction: float = 0.0  # Analog value from -1 to 1
+var smoothed_touch_direction: float = 0.0  # Smoothed for better feel
 var touch_jump_pressed: bool = false
 var combo_jump_multiplier: float = 1.0
 var power_up_jump_multiplier: float = 1.0  # From mega jump power-up
@@ -71,6 +72,9 @@ func _ready() -> void:
 	last_floor_y = global_position.y
 
 func _physics_process(delta: float) -> void:
+	# Smooth the touch input for better mobile feel
+	smooth_touch_input(delta)
+	
 	apply_gravity(delta)
 	handle_movement(delta)
 	handle_jump()
@@ -91,6 +95,17 @@ func _physics_process(delta: float) -> void:
 	update_animation()
 	update_visual_effects(delta)
 
+func smooth_touch_input(delta: float) -> void:
+	# Smooth the raw touch input for responsive yet smooth control
+	var smooth_speed = 18.0  # Higher = more responsive, lower = smoother
+	
+	if abs(touch_direction) > 0.01:
+		# Smoothly move toward target direction
+		smoothed_touch_direction = lerp(smoothed_touch_direction, touch_direction, delta * smooth_speed)
+	else:
+		# Return to zero faster when not touching
+		smoothed_touch_direction = lerp(smoothed_touch_direction, 0.0, delta * smooth_speed * 1.5)
+
 func apply_gravity(delta: float) -> void:
 	if not is_on_floor():
 		var gravity_modifier = fall_gravity_multiplier if velocity.y > 0 else 1.0
@@ -107,9 +122,14 @@ func handle_movement(delta: float) -> void:
 	var current_acceleration = ice_acceleration if is_on_ice else acceleration
 	var current_friction_value = ice_friction if is_on_ice else friction
 	
-	if direction != 0:
+	if abs(direction) > 0.01:
+		# Analog input: direction value scales the target speed
+		# Full joystick = full speed, half joystick = half speed
 		var target_velocity = direction * run_speed
-		velocity.x = move_toward(velocity.x, target_velocity, current_acceleration * delta)
+		
+		# Use higher acceleration for more responsive mobile controls
+		var mobile_acceleration = current_acceleration * 1.3
+		velocity.x = move_toward(velocity.x, target_velocity, mobile_acceleration * delta)
 	else:
 		var active_friction = current_friction_value if is_on_floor() else air_friction
 		velocity.x = move_toward(velocity.x, 0, active_friction * delta)
@@ -118,7 +138,8 @@ func get_input_direction() -> float:
 	var keyboard_dir = Input.get_axis("move_left", "move_right")
 	if keyboard_dir != 0:
 		return keyboard_dir
-	return touch_direction
+	# Return smoothed analog touch direction for better mobile feel
+	return smoothed_touch_direction
 
 func handle_jump() -> void:
 	var jump_pressed = Input.is_action_just_pressed("jump") or touch_jump_pressed
@@ -316,6 +337,9 @@ func reset(spawn_position: Vector2) -> void:
 	target_scale = Vector2.ONE
 	current_visual_scale = Vector2.ONE
 	current_anim = "idle"
+	touch_direction = 0.0
+	smoothed_touch_direction = 0.0
+	touch_jump_pressed = false
 	if sprite:
 		sprite.modulate = Color(1, 1, 1, 1)
 		sprite.scale = Vector2(0.5, 0.5)
