@@ -44,6 +44,12 @@ var last_floor_y: float = 0.0
 var touch_direction: float = 0.0  # Analog value from -1 to 1
 var smoothed_touch_direction: float = 0.0  # Smoothed for better feel
 var touch_jump_pressed: bool = false
+
+# Jump assist (makes combos easier)
+var coyote_timer: float = 0.0      # Time since left ground
+var jump_buffer_timer: float = 0.0 # Time since jump was pressed
+const COYOTE_TIME: float = 0.12    # Can still jump shortly after leaving platform
+const JUMP_BUFFER: float = 0.15    # Remember jump input for a moment
 var combo_jump_multiplier: float = 1.0
 var power_up_jump_multiplier: float = 1.0  # From mega jump power-up
 var current_floor: Floor = null
@@ -77,7 +83,7 @@ func _physics_process(delta: float) -> void:
 	
 	apply_gravity(delta)
 	handle_movement(delta)
-	handle_jump()
+	handle_jump(delta)
 	handle_wall_bounce()
 	
 	var was_on_floor_before = was_on_floor
@@ -133,14 +139,30 @@ func get_input_direction() -> float:
 	# Return smoothed analog touch direction for better mobile feel
 	return smoothed_touch_direction
 
-func handle_jump() -> void:
+func handle_jump(delta: float) -> void:
 	var jump_pressed = Input.is_action_just_pressed("jump") or touch_jump_pressed
 	var jump_released = Input.is_action_just_released("jump")
 	
+	# Update coyote time (allows jump shortly after leaving platform)
+	if is_on_floor():
+		coyote_timer = COYOTE_TIME
+	else:
+		coyote_timer -= delta
+	
+	# Update jump buffer (remembers jump input)
 	if jump_pressed:
+		jump_buffer_timer = JUMP_BUFFER
 		touch_jump_pressed = false
-		if is_on_floor():
-			perform_jump()
+	else:
+		jump_buffer_timer -= delta
+	
+	# Can jump if: on floor OR within coyote time, AND jump buffered
+	var can_jump = (is_on_floor() or coyote_timer > 0) and jump_buffer_timer > 0
+	
+	if can_jump:
+		perform_jump()
+		coyote_timer = 0  # Consume coyote time
+		jump_buffer_timer = 0  # Consume buffer
 	
 	if jump_released and velocity.y < 0:
 		velocity.y *= jump_cut_multiplier
@@ -332,6 +354,8 @@ func reset(spawn_position: Vector2) -> void:
 	touch_direction = 0.0
 	smoothed_touch_direction = 0.0
 	touch_jump_pressed = false
+	coyote_timer = 0.0
+	jump_buffer_timer = 0.0
 	if sprite:
 		sprite.modulate = Color(1, 1, 1, 1)
 		sprite.scale = Vector2(0.5, 0.5)
