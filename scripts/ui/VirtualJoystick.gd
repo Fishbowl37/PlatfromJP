@@ -6,9 +6,8 @@ signal joystick_released
 signal jump_triggered
 
 @export_group("Sensitivity")
-@export var max_drag_distance: float = 40.0  # Smaller = more sensitive
-@export var dead_zone: float = 5.0           # Very small dead zone
-@export var jump_threshold: float = 0.4      # Easy to trigger jump
+@export var horizontal_sensitivity: float = 0.03  # Lower = more sensitive
+@export var jump_drag_threshold: float = 25.0     # Pixels to drag up for jump
 
 # Internal state
 var touch_index: int = -1
@@ -23,16 +22,10 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_process(true)
 
-func _process(delta: float) -> void:
-	if not is_active:
-		# Quick decay for responsive stop
-		if current_output.length() > 0.001:
-			current_output = current_output.lerp(Vector2.ZERO, delta * 20.0)
-			joystick_input.emit(current_output)
-		elif current_output != Vector2.ZERO:
-			current_output = Vector2.ZERO
-			joystick_input.emit(current_output)
-		can_jump = true
+func _process(_delta: float) -> void:
+	if not is_active and current_output != Vector2.ZERO:
+		current_output = Vector2.ZERO
+		joystick_input.emit(current_output)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -42,7 +35,7 @@ func _input(event: InputEvent) -> void:
 
 func _handle_touch(touch: InputEventScreenTouch) -> void:
 	if touch.pressed:
-		# Ignore touches in top 12% (UI area)
+		# Ignore top 12% (UI)
 		var viewport_size = get_viewport().get_visible_rect().size
 		if touch.position.y < viewport_size.y * 0.12:
 			return
@@ -58,6 +51,8 @@ func _handle_touch(touch: InputEventScreenTouch) -> void:
 			touch_index = -1
 			is_active = false
 			can_jump = true
+			current_output = Vector2.ZERO
+			joystick_input.emit(current_output)
 			joystick_released.emit()
 
 func _handle_drag(drag: InputEventScreenDrag) -> void:
@@ -65,25 +60,24 @@ func _handle_drag(drag: InputEventScreenDrag) -> void:
 		return
 	
 	current_touch_position = drag.position
-	
 	var delta = current_touch_position - touch_start_position
-	var distance = delta.length()
 	
-	# Very responsive - small movements register quickly
-	if distance < dead_zone:
-		current_output = Vector2.ZERO
-	else:
-		var effective_distance = distance - dead_zone
-		var normalized = min(effective_distance / max_drag_distance, 1.0)
-		# Apply curve for better control at low speeds
-		normalized = normalized * normalized * (3.0 - 2.0 * normalized)  # Smoothstep
-		current_output = delta.normalized() * normalized
+	# HORIZONTAL: Independent, based purely on X drag
+	# This allows full horizontal speed regardless of vertical position
+	var horizontal = clamp(delta.x * horizontal_sensitivity, -1.0, 1.0)
 	
-	# Jump detection
-	if current_output.y < -jump_threshold and can_jump:
+	# Apply subtle curve for fine control
+	horizontal = sign(horizontal) * pow(abs(horizontal), 0.8)
+	
+	current_output.x = horizontal
+	
+	# JUMP: Based on upward drag (negative Y)
+	# Completely independent from horizontal
+	if delta.y < -jump_drag_threshold and can_jump:
 		jump_triggered.emit()
 		can_jump = false
-	elif current_output.y > -jump_threshold * 0.3:
+	elif delta.y > -jump_drag_threshold * 0.5:
+		# Reset jump when finger moves back down
 		can_jump = true
 	
 	joystick_input.emit(current_output)
