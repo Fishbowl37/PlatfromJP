@@ -8,13 +8,13 @@ signal menu_requested
 @onready var title_label: Label = $Panel/MarginContainer/VBoxContainer/TitleLabel
 @onready var score_label: Label = $Panel/MarginContainer/VBoxContainer/ScoreLabel
 @onready var best_label: Label = $Panel/MarginContainer/VBoxContainer/BestLabel
-@onready var floor_label: Label = $Panel/MarginContainer/VBoxContainer/FloorLabel
+@onready var distance_label: Label = $Panel/MarginContainer/VBoxContainer/DistanceLabel
 @onready var restart_button: Button = $Panel/MarginContainer/VBoxContainer/RestartButton
 @onready var menu_button: Button = $Panel/MarginContainer/VBoxContainer/MenuButton
 @onready var dimmer: ColorRect = $Dimmer
 
 var final_score: int = 0
-var final_floor: int = 0
+var final_distance: float = 0.0
 var is_new_best: bool = false
 
 func _ready() -> void:
@@ -36,16 +36,21 @@ func format_number(num: int) -> String:
 		count += 1
 	return result
 
-func show_game_over(score: int, floor_reached: int, best_score: int) -> void:
+func format_distance(dist: float) -> String:
+	if dist >= 1000:
+		return "%.1fkm" % (dist / 1000.0)
+	return "%dm" % int(dist)
+
+func show_game_over(score: int, distance_reached: float, best_score: int) -> void:
 	final_score = score
-	final_floor = floor_reached
+	final_distance = distance_reached
 	is_new_best = score > best_score
 	
 	# Update labels
 	if score_label:
 		score_label.text = format_number(score)
-	if floor_label:
-		floor_label.text = "FLOOR: %d" % floor_reached
+	if distance_label:
+		distance_label.text = "📏 HEIGHT: %s" % format_distance(distance_reached)
 	if best_label:
 		if is_new_best:
 			best_label.text = "★ NEW BEST! ★"

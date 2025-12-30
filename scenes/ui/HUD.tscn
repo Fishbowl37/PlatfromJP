@@ -24,12 +24,14 @@ hue_variation_min = -0.15
 hue_variation_max = 0.15
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
-bg_color = Color(0.08, 0.06, 0.18, 0.95)
-border_width_bottom = 3
-border_color = Color(0.4, 0.2, 0.8, 0.8)
-corner_radius_bottom_left = 12
-corner_radius_bottom_right = 12
-shadow_color = Color(0.3, 0.1, 0.6, 0.4)
+bg_color = Color(0.05, 0.02, 0.12, 0.92)
+border_width_left = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.95, 0.5, 0.2, 0.85)
+corner_radius_bottom_left = 14
+corner_radius_bottom_right = 14
+shadow_color = Color(1, 0.4, 0.1, 0.3)
 shadow_size = 8
 shadow_offset = Vector2(0, 4)
 
@@ -69,66 +71,70 @@ grow_vertical = 2
 [node name="TopBar" type="PanelContainer" parent="SpinContainer"]
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 70.0
+offset_bottom = 58.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
+[node name="TopGlow" type="ColorRect" parent="SpinContainer/TopBar"]
+layout_mode = 2
+color = Color(1, 0.6, 0.2, 0.06)
+
 [node name="MarginContainer" type="MarginContainer" parent="SpinContainer/TopBar"]
 layout_mode = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 6
 
 [node name="HBoxContainer" type="HBoxContainer" parent="SpinContainer/TopBar/MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 16
 
 [node name="ScoreContainer" type="VBoxContainer" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = -2
+theme_override_constants/separation = -4
 
 [node name="ScoreTitle" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/ScoreContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.5, 0.9, 1)
-theme_override_font_sizes/font_size = 12
-text = "SCORE"
+theme_override_colors/font_color = Color(1, 0.75, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "⭐ SCORE"
 
 [node name="ScoreLabel" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/ScoreContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0.3, 0.1, 0.5, 0.8)
+theme_override_colors/font_color = Color(1, 0.95, 0.8, 1)
+theme_override_colors/font_outline_color = Color(0.5, 0.2, 0, 0.8)
 theme_override_constants/outline_size = 3
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 26
 text = "0"
 
 [node name="Divider" type="VSeparator" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
-modulate = Color(0.5, 0.3, 0.8, 0.6)
+modulate = Color(1, 0.6, 0.3, 0.4)
 layout_mode = 2
 
-[node name="FloorContainer" type="VBoxContainer" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
+[node name="DistanceContainer" type="VBoxContainer" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = -2
+theme_override_constants/separation = -4
 
-[node name="FloorTitle" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/FloorContainer"]
+[node name="DistanceTitle" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/DistanceContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.4, 0.8, 0.9, 1)
-theme_override_font_sizes/font_size = 12
-text = "FLOOR"
+theme_override_colors/font_color = Color(0.4, 1, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "📏 HEIGHT"
 
-[node name="FloorLabel" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/FloorContainer"]
+[node name="DistanceLabel" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/DistanceContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.95, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0.2, 0.4, 0.8)
+theme_override_colors/font_color = Color(0.4, 1, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0, 0.35, 0.3, 0.8)
 theme_override_constants/outline_size = 3
-theme_override_font_sizes/font_size = 32
-text = "0"
+theme_override_font_sizes/font_size = 26
+text = "0m"
 
 [node name="StreakIndicator" type="Control" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer"]
 visible = false
-custom_minimum_size = Vector2(60, 0)
+custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 
 [node name="StreakIcon" type="Label" parent="SpinContainer/TopBar/MarginContainer/HBoxContainer/StreakIndicator"]
@@ -138,13 +144,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
+offset_left = -18.0
+offset_top = -18.0
+offset_right = 18.0
+offset_bottom = 18.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 24
 text = "🔥"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -155,9 +161,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -100.0
-offset_top = 80.0
+offset_top = 68.0
 offset_right = 100.0
-offset_bottom = 140.0
+offset_bottom = 128.0
 grow_horizontal = 2
 pivot_offset = Vector2(100, 30)
 theme_override_styles/panel = SubResource("StyleBoxFlat_combo")
@@ -172,7 +178,7 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0.3, 0, 0, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 32
-text = "x2 FLOORS"
+text = "x2 COMBO"
 horizontal_alignment = 1
 
 [node name="ComboBar" type="ProgressBar" parent="SpinContainer/ComboContainer/VBoxContainer"]
@@ -194,4 +200,3 @@ randomness = 0.6
 visibility_rect = Rect2(-300, -500, 600, 1000)
 local_coords = false
 color_ramp = SubResource("GradientTexture1D_stars")
-

@@ -39,6 +39,9 @@ var settings_panel: SettingsPanel
 # Zone tracking
 var current_zone: String = ""
 
+# Player spawn position for distance calculation
+var player_start_y: float = 0.0
+
 func _ready() -> void:
 	setup_game()
 	connect_signals()
@@ -55,6 +58,11 @@ func _process(_delta: float) -> void:
 	if not GameManager.is_game_active:
 		return
 	
+	# Update distance from starting point
+	if player:
+		var distance = max(0.0, player_start_y - player.global_position.y) / 10.0  # Convert to meters
+		GameManager.update_distance(distance)
+	
 	# Update HUD with current zone
 	if floor_generator and hud:
 		var zone = floor_generator.get_current_zone_name()
@@ -69,7 +77,7 @@ func _process(_delta: float) -> void:
 	if game_camera and touch_controls:
 		touch_controls.set_speed(game_camera.get_scroll_speed())
 	
-	# Update background color based on floor
+	# Update background color based on distance
 	update_background_theme()
 
 func setup_game() -> void:
@@ -125,6 +133,7 @@ func connect_signals() -> void:
 	if player:
 		player.floor_landed.connect(_on_player_floor_landed)
 		player.player_died.connect(_on_player_died)
+		player.mega_jump_triggered.connect(_on_mega_jump_triggered)
 	
 	# Camera signals
 	if game_camera:
@@ -132,7 +141,7 @@ func connect_signals() -> void:
 	
 	# GameManager signals
 	GameManager.score_changed.connect(_on_score_changed)
-	GameManager.floor_changed.connect(_on_floor_changed)
+	GameManager.distance_changed.connect(_on_distance_changed)
 	GameManager.danger_level_changed.connect(_on_danger_changed)
 	
 	# Combo system signals
@@ -167,6 +176,10 @@ func start_game() -> void:
 	GameManager.start_game()
 	current_zone = ""
 	
+	# Store player's starting position for distance calculation
+	if player:
+		player_start_y = player.global_position.y
+	
 	# Floor generator is already initialized in _ready() for first launch
 	# For restarts, it's re-initialized in restart_game()
 	
@@ -195,12 +208,7 @@ func start_game() -> void:
 		touch_controls.set_speed(0)
 
 func _on_player_floor_landed(floor_y: float) -> void:
-	var floor_number = int((start_y - floor_y) / 120)
-	
-	# Update floor in GameManager (for tracking)
-	GameManager.on_floor_landed(floor_y, floor_number)
-	
-	# Process with combo system
+	# Process with combo system for scoring
 	if combo_system:
 		var score = combo_system.on_floor_landed(floor_y)
 		if score > 0:
@@ -211,6 +219,12 @@ func _on_player_floor_landed(floor_y: float) -> void:
 
 func _on_player_died() -> void:
 	end_game()
+
+func _on_mega_jump_triggered() -> void:
+	# Screen shake and flash for mega jump
+	if hud:
+		hud.trigger_screen_shake(12.0)
+		hud.trigger_screen_flash(Color(0.3, 1.0, 0.5, 0.35))
 
 func _on_player_fell() -> void:
 	# Check if shield can save us
@@ -236,7 +250,7 @@ func end_game() -> void:
 	if game_over_screen:
 		game_over_screen.show_game_over(
 			GameManager.current_score,
-			GameManager.current_floor,
+			GameManager.current_distance,
 			GameManager.best_score
 		)
 
@@ -280,9 +294,9 @@ func _on_score_changed(new_score: int) -> void:
 	if hud:
 		hud.set_score(new_score)
 
-func _on_floor_changed(floor_number: int) -> void:
+func _on_distance_changed(distance: float) -> void:
 	if hud:
-		hud.set_floor(floor_number)
+		hud.set_distance(distance)
 
 func _on_danger_changed(level: float) -> void:
 	if hud:
@@ -449,9 +463,10 @@ const ZONE_THEMES = [
 ]
 
 func update_background_theme() -> void:
-	var floor_num = GameManager.current_floor
-	var zone_index = int(floor_num / 300)
-	zone_index = min(zone_index, ZONE_THEMES.size() - 1)
+	# Use distance to determine zone (each zone is ~300 meters)
+	var distance = GameManager.current_distance
+	var zone_index = int(distance / 300.0)
+	zone_index = mini(zone_index, ZONE_THEMES.size() - 1)
 	
 	# Only update if zone changed
 	if zone_index == current_background_zone:

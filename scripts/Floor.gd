@@ -298,3 +298,89 @@ func get_floor_width() -> float:
 func set_tower_bounds(left: float, right: float) -> void:
 	tower_left = left
 	tower_right = right
+
+# ========== MEGA JUMP BREAK ==========
+func mega_break() -> void:
+	# Already crumbling/broken
+	if is_crumbling or collision_shape.disabled:
+		return
+	
+	is_crumbling = true
+	collision_shape.disabled = true
+	
+	# Get platform colors for debris
+	var base_color = NORMAL_COLOR
+	match floor_type:
+		FloorType.CRUMBLING: base_color = CRUMBLING_COLOR
+		FloorType.MOVING: base_color = MOVING_COLOR
+		FloorType.SPRING: base_color = SPRING_COLOR
+		FloorType.ICE: base_color = ICE_COLOR
+	
+	# Create debris chunks that FLY APART dramatically
+	var num_debris = 8
+	for i in range(num_debris):
+		var debris = ColorRect.new()
+		var chunk_width = floor_width / num_debris
+		debris.size = Vector2(chunk_width - 4, 14)
+		
+		# Color variation from platform color
+		var color_var = randf_range(-0.1, 0.1)
+		debris.color = Color(
+			clamp(base_color.r + color_var, 0, 1),
+			clamp(base_color.g + color_var, 0, 1),
+			clamp(base_color.b + color_var, 0, 1),
+			1.0
+		)
+		debris.pivot_offset = debris.size / 2
+		
+		# Start position - spread along platform width
+		var start_x = -floor_width / 2 + chunk_width * i + chunk_width / 2
+		debris.position = global_position + Vector2(start_x, 0) - debris.size / 2
+		debris.z_index = 5
+		get_parent().add_child(debris)
+		
+		# Each piece flies in a different direction - spread outward from center
+		var spread_direction = (start_x / (floor_width / 2))  # -1 to 1 based on position
+		var angle = -PI/2 + spread_direction * PI/3 + randf_range(-0.3, 0.3)  # Fan out upward
+		var fly_speed = randf_range(200, 350)
+		var end_pos = debris.position + Vector2(cos(angle), sin(angle)) * fly_speed
+		
+		# Add gravity fall after initial burst
+		var gravity_end = end_pos + Vector2(0, randf_range(100, 200))
+		
+		var tween = get_tree().create_tween()
+		# Fast initial burst outward
+		tween.tween_property(debris, "position", end_pos, 0.2).set_ease(Tween.EASE_OUT)
+		# Then fall with gravity
+		tween.tween_property(debris, "position", gravity_end, 0.4).set_ease(Tween.EASE_IN)
+		
+		# Rotation and fade in parallel
+		var spin_tween = get_tree().create_tween()
+		spin_tween.set_parallel(true)
+		spin_tween.tween_property(debris, "rotation", randf_range(-TAU, TAU), 0.6)
+		spin_tween.tween_property(debris, "modulate:a", 0.0, 0.4).set_delay(0.2)
+		spin_tween.tween_property(debris, "scale", Vector2(0.5, 0.5), 0.6)
+		spin_tween.chain().tween_callback(debris.queue_free)
+	
+	# Small dust puff at break point
+	for i in range(6):
+		var dust = ColorRect.new()
+		dust.size = Vector2(8, 8)
+		dust.color = Color(1, 1, 1, 0.6)
+		dust.pivot_offset = Vector2(4, 4)
+		dust.position = global_position + Vector2(randf_range(-floor_width/3, floor_width/3), randf_range(-5, 5))
+		dust.z_index = 4
+		get_parent().add_child(dust)
+		
+		var dust_end = dust.position + Vector2(randf_range(-30, 30), randf_range(-40, -10))
+		var dust_tween = get_tree().create_tween()
+		dust_tween.set_parallel(true)
+		dust_tween.tween_property(dust, "position", dust_end, 0.3).set_ease(Tween.EASE_OUT)
+		dust_tween.tween_property(dust, "modulate:a", 0.0, 0.3)
+		dust_tween.tween_property(dust, "scale", Vector2(2, 2), 0.3)
+		dust_tween.chain().tween_callback(dust.queue_free)
+	
+	# Hide the original platform instantly
+	modulate.a = 0
+	
+	floor_crumbled.emit(self)

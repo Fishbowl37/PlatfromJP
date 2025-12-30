@@ -4,6 +4,7 @@ class_name Player
 signal floor_landed(floor_y: float)
 signal player_died
 signal power_up_collected(power_up: PowerUp)
+signal mega_jump_triggered
 
 # Movement parameters
 @export_group("Movement")
@@ -73,6 +74,12 @@ var consecutive_big_jumps: int = 0
 var is_rolling: bool = false
 var roll_rotation: float = 0.0
 
+# Speed lines effect - only for big jumps (100m+)
+var speed_line_timer: float = 0.0
+const SPEED_LINE_INTERVAL: float = 0.03
+var jump_start_y: float = 0.0  # Track where jump started
+const SPEED_LINE_DISTANCE: float = 1000.0  # 100 meters (10 pixels = 1m)
+
 # References
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -97,6 +104,12 @@ func _physics_process(delta: float) -> void:
 	was_on_floor = is_on_floor()
 	
 	move_and_slide()
+	
+	# Break floors when mega jumping through them
+	# Stop breaking after 650 meters (6500 pixels) to leave platforms for landing
+	var jump_distance = jump_start_y - global_position.y
+	if is_mega_jump_active and velocity.y < -300 and jump_distance < 6500:
+		check_mega_jump_floor_break()
 	
 	detect_current_floor()
 	
@@ -184,12 +197,20 @@ func perform_jump() -> void:
 	velocity.y = -total_jump_force
 	is_jumping = true
 	
+	# Record jump start position for speed lines
+	jump_start_y = global_position.y
+	
 	# Squash effect on jump (subtle)
 	if squash_stretch_enabled:
 		if is_mega_jump_active:
 			target_scale = Vector2(1.15, 0.85)  # Subtle squash
 		else:
 			target_scale = Vector2(1.1, 0.9)
+	
+	# Mega jump blast effect - attached to player
+	if is_mega_jump_active:
+		spawn_mega_jump_blast()
+		mega_jump_triggered.emit()
 	
 	if jump_particles:
 		jump_particles.emitting = true
@@ -219,6 +240,9 @@ func on_landed() -> void:
 	if squash_stretch_enabled:
 		var impact = min(abs(velocity.y) / 800.0, 0.15)
 		target_scale = Vector2(1.0 + impact, 1.0 - impact * 0.5)
+	
+	# Spawn landing dust particles
+	spawn_landing_dust()
 	
 	# Emit signal for combo system if we went UP
 	if global_position.y < last_floor_y - 20:
@@ -401,6 +425,81 @@ func detect_current_floor() -> void:
 	
 	is_on_ice = current_floor != null and current_floor.is_ice_platform()
 
+func check_mega_jump_floor_break() -> void:
+	# Use a raycast to find floors above the player
+	var space_state = get_world_2d().direct_space_state
+	
+	# Cast ray upward from player - floors are on collision layer 2
+	var query = PhysicsRayQueryParameters2D.create(
+		global_position + Vector2(0, -10),  # Start from player head
+		global_position + Vector2(0, -100),  # Check 90 pixels above
+		2  # Collision mask - floors are on layer 2
+	)
+	query.exclude = [self]
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	
+	var result = space_state.intersect_ray(query)
+	if result and result.collider is Floor:
+		var floor_node = result.collider as Floor
+		floor_node.mega_break()
+		# Visual feedback around the player when breaking through
+		spawn_breakthrough_effect()
+
+func spawn_breakthrough_effect() -> void:
+	# Quick burst effect AROUND THE PLAYER so they can see it
+	var colors = [
+		Color(1.0, 0.9, 0.3, 1.0),   # Gold
+		Color(1.0, 0.5, 0.2, 1.0),   # Orange
+		Color(1.0, 1.0, 1.0, 0.9),   # White
+	]
+	
+	# Horizontal burst lines at player position
+	for i in range(6):
+		var line = ColorRect.new()
+		line.size = Vector2(20, 4)
+		line.color = colors[i % colors.size()]
+		line.pivot_offset = Vector2(10, 2)
+		
+		var side = -1 if i % 2 == 0 else 1
+		line.position = global_position + Vector2(side * 10, -10 + i * 4)
+		line.z_index = 20
+		get_parent().add_child(line)
+		
+		var end_x = line.position.x + side * randf_range(60, 100)
+		var tween = get_tree().create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(line, "position:x", end_x, 0.15).set_ease(Tween.EASE_OUT)
+		tween.tween_property(line, "modulate:a", 0.0, 0.15)
+		tween.tween_property(line, "scale:x", 2.0, 0.15)
+		tween.chain().tween_callback(line.queue_free)
+	
+	# Sparks that travel WITH the player (upward)
+	for i in range(4):
+		var spark = ColorRect.new()
+		spark.size = Vector2(6, 6)
+		spark.color = colors[i % colors.size()]
+		spark.pivot_offset = Vector2(3, 3)
+		spark.position = global_position + Vector2(randf_range(-30, 30), randf_range(-20, 10))
+		spark.z_index = 20
+		add_child(spark)  # Add to player so it moves with them!
+		
+		# Float outward from player while attached
+		var local_end = spark.position - global_position + Vector2(randf_range(-40, 40), randf_range(-30, 30))
+		var spark_tween = get_tree().create_tween()
+		spark_tween.set_parallel(true)
+		spark_tween.tween_property(spark, "position", local_end, 0.25).set_ease(Tween.EASE_OUT)
+		spark_tween.tween_property(spark, "modulate:a", 0.0, 0.25)
+		spark_tween.tween_property(spark, "scale", Vector2(0.3, 0.3), 0.25)
+		spark_tween.chain().tween_callback(spark.queue_free)
+	
+	# Quick flash on player sprite
+	if sprite:
+		var original_modulate = sprite.modulate
+		sprite.modulate = Color(1.5, 1.5, 1.0)
+		var flash_tween = get_tree().create_tween()
+		flash_tween.tween_property(sprite, "modulate", original_modulate, 0.1)
+
 func update_sprite_direction() -> void:
 	if velocity.x > 10:
 		sprite.flip_h = false
@@ -467,6 +566,14 @@ func update_visual_effects(delta: float) -> void:
 		if trail_timer <= 0:
 			spawn_trail()
 			trail_timer = trail_spawn_rate
+	
+	# Speed lines only when jumping up 100+ meters
+	var jump_distance = jump_start_y - global_position.y
+	if velocity.y < 0 and jump_distance > SPEED_LINE_DISTANCE:
+		speed_line_timer -= delta
+		if speed_line_timer <= 0:
+			spawn_speed_lines()
+			speed_line_timer = SPEED_LINE_INTERVAL
 
 func spawn_trail() -> void:
 	if not sprite or not sprite.sprite_frames:
@@ -512,6 +619,169 @@ func spawn_trail() -> void:
 	tween.tween_property(trail, "modulate:a", 0.0, 0.25)
 	tween.tween_property(trail, "scale", trail.scale * 0.8, 0.25)
 	tween.chain().tween_callback(trail.queue_free)
+
+func spawn_speed_lines() -> void:
+	# Spawn 2-3 speed lines at random positions around the player (only for upward movement)
+	var num_lines = randi_range(2, 3)
+	
+	for i in range(num_lines):
+		var line = ColorRect.new()
+		line.size = Vector2(2, randf_range(40, 80))  # Thin vertical lines
+		
+		# Random horizontal offset from player
+		var x_offset = randf_range(-60, 60)
+		var y_offset = randf_range(-40, 40)
+		line.position = global_position + Vector2(x_offset, y_offset)
+		
+		# Blue-ish color for jumping up
+		if is_mega_jump_active:
+			line.color = Color(0.3, 1, 0.5, 0.7)  # Green for mega jump
+		else:
+			line.color = Color(0.4, 0.8, 1, 0.6)  # Blue for normal jump
+		
+		line.z_index = -1
+		get_parent().add_child(line)
+		
+		# Animate - lines move down (opposite to jump) and fade
+		var tween = get_tree().create_tween()
+		var end_y = line.position.y + 100
+		tween.set_parallel(true)
+		tween.tween_property(line, "position:y", end_y, 0.2)
+		tween.tween_property(line, "modulate:a", 0.0, 0.2)
+		tween.tween_property(line, "size:y", line.size.y * 1.5, 0.2)
+		tween.chain().tween_callback(line.queue_free)
+
+func spawn_mega_jump_blast() -> void:
+	var jump_pos = global_position
+	
+	# Vibrant colors
+	var colors = [
+		Color(1.0, 0.3, 0.5, 1.0),   # Pink
+		Color(1.0, 0.8, 0.2, 1.0),   # Gold
+		Color(0.3, 1.0, 0.5, 1.0),   # Green
+		Color(0.3, 0.7, 1.0, 1.0),   # Cyan
+	]
+	
+	# === QUICK FLASH ===
+	var flash = ColorRect.new()
+	flash.size = Vector2(80, 80)
+	flash.color = Color(1.0, 1.0, 1.0, 0.9)
+	flash.position = jump_pos - Vector2(40, 30)
+	flash.pivot_offset = Vector2(40, 40)
+	flash.z_index = 15
+	get_parent().add_child(flash)
+	
+	var flash_tween = get_tree().create_tween()
+	flash_tween.set_parallel(true)
+	flash_tween.tween_property(flash, "scale", Vector2(3, 3), 0.12).set_ease(Tween.EASE_OUT)
+	flash_tween.tween_property(flash, "modulate:a", 0.0, 0.15)
+	flash_tween.chain().tween_callback(flash.queue_free)
+	
+	# === FAST RING ===
+	var ring = Node2D.new()
+	ring.global_position = jump_pos + Vector2(0, 10)
+	ring.z_index = 12
+	get_parent().add_child(ring)
+	
+	for i in range(12):
+		var angle = (TAU / 12) * i
+		var seg = ColorRect.new()
+		seg.size = Vector2(18, 8)
+		seg.color = colors[i % colors.size()]
+		seg.pivot_offset = Vector2(9, 4)
+		seg.rotation = angle
+		seg.position = Vector2(cos(angle), sin(angle)) * 25 - Vector2(9, 4)
+		ring.add_child(seg)
+	
+	var ring_tween = get_tree().create_tween()
+	ring_tween.set_parallel(true)
+	ring_tween.tween_property(ring, "scale", Vector2(8, 8), 0.25).set_ease(Tween.EASE_OUT)
+	ring_tween.tween_property(ring, "modulate:a", 0.0, 0.25)
+	ring_tween.chain().tween_callback(ring.queue_free)
+	
+	# === FAST PARTICLES ===
+	for i in range(12):
+		var angle = (TAU / 12) * i
+		var particle = ColorRect.new()
+		particle.size = Vector2(10, 10)
+		particle.color = colors[i % colors.size()]
+		particle.pivot_offset = Vector2(5, 5)
+		particle.position = jump_pos - Vector2(5, 5)
+		particle.z_index = 13
+		get_parent().add_child(particle)
+		
+		var direction = Vector2(cos(angle), sin(angle))
+		var end_pos = particle.position + direction * randf_range(80, 120)
+		
+		var p_tween = get_tree().create_tween()
+		p_tween.set_parallel(true)
+		p_tween.tween_property(particle, "position", end_pos, 0.25).set_ease(Tween.EASE_OUT)
+		p_tween.tween_property(particle, "modulate:a", 0.0, 0.25)
+		p_tween.chain().tween_callback(particle.queue_free)
+	
+	# === GROUND BURST ===
+	var sw_left = ColorRect.new()
+	sw_left.size = Vector2(30, 8)
+	sw_left.color = colors[0]
+	sw_left.position = jump_pos + Vector2(-15, 20)
+	sw_left.pivot_offset = Vector2(30, 4)
+	sw_left.z_index = 12
+	get_parent().add_child(sw_left)
+	
+	var sw_right = ColorRect.new()
+	sw_right.size = Vector2(30, 8)
+	sw_right.color = colors[2]
+	sw_right.position = jump_pos + Vector2(-15, 20)
+	sw_right.pivot_offset = Vector2(0, 4)
+	sw_right.z_index = 12
+	get_parent().add_child(sw_right)
+	
+	var sw_left_tween = get_tree().create_tween()
+	sw_left_tween.set_parallel(true)
+	sw_left_tween.tween_property(sw_left, "scale:x", 12.0, 0.2).set_ease(Tween.EASE_OUT)
+	sw_left_tween.tween_property(sw_left, "modulate:a", 0.0, 0.2)
+	sw_left_tween.chain().tween_callback(sw_left.queue_free)
+	
+	var sw_right_tween = get_tree().create_tween()
+	sw_right_tween.set_parallel(true)
+	sw_right_tween.tween_property(sw_right, "scale:x", 12.0, 0.2).set_ease(Tween.EASE_OUT)
+	sw_right_tween.tween_property(sw_right, "modulate:a", 0.0, 0.2)
+	sw_right_tween.chain().tween_callback(sw_right.queue_free)
+
+func spawn_landing_dust() -> void:
+	# Spawn dust puff particles when landing
+	var num_particles = randi_range(4, 6)
+	var dust_colors = [
+		Color(0.9, 0.85, 0.7, 0.7),  # Light tan
+		Color(0.8, 0.75, 0.6, 0.6),  # Darker tan
+		Color(1.0, 0.95, 0.85, 0.5)  # Almost white
+	]
+	
+	for i in range(num_particles):
+		var dust = ColorRect.new()
+		var size = randf_range(4, 8)
+		dust.size = Vector2(size, size)
+		dust.color = dust_colors[i % dust_colors.size()]
+		
+		# Start at player's feet
+		var x_offset = randf_range(-20, 20)
+		dust.position = global_position + Vector2(x_offset - size/2, 10)
+		dust.pivot_offset = Vector2(size/2, size/2)
+		
+		dust.z_index = -1
+		get_parent().add_child(dust)
+		
+		# Animate outward and upward, then fade
+		var angle = randf_range(-PI * 0.8, -PI * 0.2)  # Mostly upward arc
+		var distance = randf_range(20, 40)
+		var end_pos = dust.position + Vector2(cos(angle), sin(angle)) * distance
+		
+		var tween = get_tree().create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(dust, "position", end_pos, 0.4).set_ease(Tween.EASE_OUT)
+		tween.tween_property(dust, "modulate:a", 0.0, 0.4)
+		tween.tween_property(dust, "scale", Vector2(0.3, 0.3), 0.4)
+		tween.chain().tween_callback(dust.queue_free)
 
 func die() -> void:
 	player_died.emit()

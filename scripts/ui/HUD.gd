@@ -5,7 +5,7 @@ signal settings_requested
 
 # Top bar elements
 @onready var score_label: Label = $SpinContainer/TopBar/MarginContainer/HBoxContainer/ScoreContainer/ScoreLabel
-@onready var floor_label: Label = $SpinContainer/TopBar/MarginContainer/HBoxContainer/FloorContainer/FloorLabel
+@onready var distance_label: Label = $SpinContainer/TopBar/MarginContainer/HBoxContainer/DistanceContainer/DistanceLabel
 @onready var streak_indicator: Control = $SpinContainer/TopBar/MarginContainer/HBoxContainer/StreakIndicator
 @onready var streak_icon: Label = $SpinContainer/TopBar/MarginContainer/HBoxContainer/StreakIndicator/StreakIcon
 
@@ -22,7 +22,7 @@ signal settings_requested
 var settings_button: Button = null
 
 var current_score: int = 0
-var current_floor: int = 0
+var current_distance: float = 0.0
 var current_combo: int = 0
 var streak_active: bool = false
 var current_zone: String = ""
@@ -118,7 +118,7 @@ func create_settings_button() -> void:
 func _position_settings_button() -> void:
 	if settings_button:
 		var viewport_size = get_viewport().get_visible_rect().size
-		settings_button.position = Vector2(viewport_size.x - 60, 80)
+		settings_button.position = Vector2(viewport_size.x - 55, 65)
 
 func _on_settings_pressed() -> void:
 	settings_requested.emit()
@@ -141,7 +141,7 @@ func _process(delta: float) -> void:
 
 func create_power_up_container() -> void:
 	power_up_container = HBoxContainer.new()
-	power_up_container.position = Vector2(10, 75)
+	power_up_container.position = Vector2(10, 62)
 	power_up_container.add_theme_constant_override("separation", 8)
 	add_child(power_up_container)
 
@@ -172,9 +172,14 @@ func start_streak_pulse() -> void:
 func update_display() -> void:
 	if score_label:
 		score_label.text = format_number(current_score)
-	if floor_label:
-		floor_label.text = str(current_floor)
+	if distance_label:
+		distance_label.text = format_distance(current_distance)
 	update_combo_display()
+
+func format_distance(dist: float) -> String:
+	if dist >= 1000:
+		return "%.1fkm" % (dist / 1000.0)
+	return "%dm" % int(dist)
 
 func format_number(num: int) -> String:
 	var str_num = str(num)
@@ -191,7 +196,7 @@ func update_combo_display() -> void:
 	if combo_container:
 		combo_container.visible = current_combo >= 2
 	if combo_label and current_combo >= 2:
-		combo_label.text = "x%d FLOORS" % current_combo
+		combo_label.text = "x%d COMBO" % current_combo
 		
 		var combo_color: Color
 		if current_combo >= 10:
@@ -245,22 +250,25 @@ func set_score(score: int) -> void:
 				score_label.add_theme_color_override("font_color", Color(1, 1, 0.3))
 				color_tween.tween_property(score_label, "theme_override_colors/font_color", Color(1, 1, 1), 0.3)
 
-func set_floor(floor_num: int) -> void:
-	var old_floor = current_floor
-	current_floor = floor_num
+func set_distance(distance: float) -> void:
+	var old_distance = current_distance
+	current_distance = distance
 	
-	if floor_label:
-		floor_label.text = str(floor_num)
+	if distance_label:
+		distance_label.text = format_distance(distance)
 		
-		if floor_num > old_floor and floor_num % 10 == 0:
+		# Celebrate every 100m milestone
+		var old_hundred = int(old_distance / 100)
+		var new_hundred = int(distance / 100)
+		if new_hundred > old_hundred and new_hundred > 0:
 			var tween = get_tree().create_tween()
-			floor_label.pivot_offset = floor_label.size / 2
-			tween.tween_property(floor_label, "scale", Vector2(1.3, 1.3), 0.1)
-			tween.tween_property(floor_label, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_ELASTIC)
+			distance_label.pivot_offset = distance_label.size / 2
+			tween.tween_property(distance_label, "scale", Vector2(1.3, 1.3), 0.1)
+			tween.tween_property(distance_label, "scale", Vector2(1.0, 1.0), 0.2).set_trans(Tween.TRANS_ELASTIC)
 			
 			var color_tween = get_tree().create_tween()
-			floor_label.add_theme_color_override("font_color", Color(0, 1, 1))
-			color_tween.tween_property(floor_label, "theme_override_colors/font_color", Color(0.6, 0.95, 1), 0.4)
+			distance_label.add_theme_color_override("font_color", Color(0.2, 1, 0.8))
+			color_tween.tween_property(distance_label, "theme_override_colors/font_color", Color(0.4, 1, 0.9), 0.4)
 
 func set_zone(zone_name: String) -> void:
 	if zone_name == current_zone:
@@ -894,7 +902,7 @@ func show_combo_popup(text: String, position: Vector2) -> void:
 
 func reset() -> void:
 	current_score = 0
-	current_floor = 0
+	current_distance = 0.0
 	current_combo = 0
 	current_zone = ""
 	current_danger = 0.0
