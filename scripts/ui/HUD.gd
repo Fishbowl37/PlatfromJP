@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name HUD
 
+signal settings_requested
+
 # Top bar elements
 @onready var score_label: Label = $SpinContainer/TopBar/MarginContainer/HBoxContainer/ScoreContainer/ScoreLabel
 @onready var floor_label: Label = $SpinContainer/TopBar/MarginContainer/HBoxContainer/FloorContainer/FloorLabel
@@ -15,6 +17,9 @@ class_name HUD
 # Effects
 @onready var spin_container: Control = $SpinContainer
 @onready var star_particles: GPUParticles2D = $StarParticles if has_node("StarParticles") else null
+
+# Settings button
+var settings_button: Button = null
 
 var current_score: int = 0
 var current_floor: int = 0
@@ -39,9 +44,84 @@ var streak_pulse_tween: Tween
 func _ready() -> void:
 	create_danger_vignette()
 	create_power_up_container()
+	create_settings_button()
 	update_display()
 	if streak_icon:
 		start_streak_pulse()
+
+func create_settings_button() -> void:
+	# Create a container for the button with proper positioning
+	var btn_container = Control.new()
+	btn_container.name = "SettingsButtonContainer"
+	btn_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	btn_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	settings_button = Button.new()
+	settings_button.name = "SettingsButton"
+	settings_button.text = "⚙️"
+	settings_button.add_theme_font_size_override("font_size", 24)
+	settings_button.size = Vector2(50, 50)
+	settings_button.pressed.connect(_on_settings_pressed)
+	
+	# Position manually in top-right area
+	btn_container.add_child(settings_button)
+	
+	# Style the button
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.1, 0.08, 0.2, 0.9)
+	btn_style.border_color = Color(0.5, 0.3, 0.8, 0.8)
+	btn_style.border_width_left = 2
+	btn_style.border_width_right = 2
+	btn_style.border_width_top = 2
+	btn_style.border_width_bottom = 2
+	btn_style.corner_radius_top_left = 10
+	btn_style.corner_radius_top_right = 10
+	btn_style.corner_radius_bottom_left = 10
+	btn_style.corner_radius_bottom_right = 10
+	settings_button.add_theme_stylebox_override("normal", btn_style)
+	
+	var btn_hover = StyleBoxFlat.new()
+	btn_hover.bg_color = Color(0.15, 0.12, 0.3, 0.95)
+	btn_hover.border_color = Color(0.6, 0.4, 1.0, 1.0)
+	btn_hover.border_width_left = 2
+	btn_hover.border_width_right = 2
+	btn_hover.border_width_top = 2
+	btn_hover.border_width_bottom = 2
+	btn_hover.corner_radius_top_left = 10
+	btn_hover.corner_radius_top_right = 10
+	btn_hover.corner_radius_bottom_left = 10
+	btn_hover.corner_radius_bottom_right = 10
+	settings_button.add_theme_stylebox_override("hover", btn_hover)
+	
+	var btn_pressed = StyleBoxFlat.new()
+	btn_pressed.bg_color = Color(0.2, 0.15, 0.4, 1.0)
+	btn_pressed.border_color = Color(0.7, 0.5, 1.0, 1.0)
+	btn_pressed.border_width_left = 2
+	btn_pressed.border_width_right = 2
+	btn_pressed.border_width_top = 2
+	btn_pressed.border_width_bottom = 2
+	btn_pressed.corner_radius_top_left = 10
+	btn_pressed.corner_radius_top_right = 10
+	btn_pressed.corner_radius_bottom_left = 10
+	btn_pressed.corner_radius_bottom_right = 10
+	settings_button.add_theme_stylebox_override("pressed", btn_pressed)
+	
+	# Add the container to SpinContainer first, then position button
+	if spin_container:
+		spin_container.add_child(btn_container)
+		# Position button in top-right after we know viewport size
+		_position_settings_button.call_deferred()
+	else:
+		add_child(btn_container)
+		_position_settings_button.call_deferred()
+
+func _position_settings_button() -> void:
+	if settings_button:
+		var viewport_size = get_viewport().get_visible_rect().size
+		settings_button.position = Vector2(viewport_size.x - 60, 80)
+
+func _on_settings_pressed() -> void:
+	settings_requested.emit()
 
 func _process(delta: float) -> void:
 	# Update screen shake

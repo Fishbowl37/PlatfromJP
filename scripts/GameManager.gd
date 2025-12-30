@@ -87,6 +87,7 @@ func save_game_data() -> void:
 	var config = ConfigFile.new()
 	config.set_value("game", "best_score", best_score)
 	config.set_value("game", "highest_floor", highest_floor)
+	config.set_value("settings", "joystick_sensitivity", joystick_sensitivity)
 	config.save(SAVE_PATH)
 
 func load_game_data() -> void:
@@ -95,6 +96,7 @@ func load_game_data() -> void:
 	if err == OK:
 		best_score = config.get_value("game", "best_score", 0)
 		highest_floor = config.get_value("game", "highest_floor", 0)
+		joystick_sensitivity = config.get_value("settings", "joystick_sensitivity", 0.4)
 
 func get_best_score() -> int:
 	return best_score
@@ -112,3 +114,17 @@ func play_sound(_sound_name: String) -> void:
 
 func set_sounds_enabled(enabled: bool) -> void:
 	sounds_enabled = enabled
+
+# Joystick Sensitivity (0.0 = very low, 1.0 = very high)
+# Default 0.4 is a comfortable middle ground
+var joystick_sensitivity: float = 0.4
+
+signal joystick_sensitivity_changed(new_value: float)
+
+func set_joystick_sensitivity(value: float) -> void:
+	joystick_sensitivity = clamp(value, 0.1, 1.0)
+	joystick_sensitivity_changed.emit(joystick_sensitivity)
+	save_game_data()
+
+func get_joystick_sensitivity() -> float:
+	return joystick_sensitivity

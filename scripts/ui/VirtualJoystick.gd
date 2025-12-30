@@ -13,18 +13,40 @@ var can_jump: bool = true
 var current_horizontal: float = 0.0
 var last_y: float = 0.0  # Track Y movement for flick detection
 
-# Super forgiving tuning
-const HORIZONTAL_SENSITIVITY: float = 0.05   # 20px = full speed
+# Sensitivity tuning
+# Base sensitivity - this gets multiplied by user's setting (0.1 to 1.0)
+# At sensitivity 0.4 (default), ~50px = full speed
+# At sensitivity 1.0 (max), ~20px = full speed  
+# At sensitivity 0.1 (min), ~200px = full speed
+const BASE_SENSITIVITY: float = 0.05
+var horizontal_sensitivity: float = 0.02  # Calculated from user setting
+
 const JUMP_FLICK_THRESHOLD: float = 8.0      # Tiny flick up = jump
 const JUMP_VELOCITY_THRESHOLD: float = 3.0   # Or fast upward movement = jump
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	# Use IGNORE so GUI elements (buttons, sliders) can receive input
+	# The joystick uses _input() for touch handling, not GUI events
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# Get initial sensitivity from GameManager
+	update_sensitivity(GameManager.get_joystick_sensitivity())
+	
+	# Listen for sensitivity changes
+	GameManager.joystick_sensitivity_changed.connect(update_sensitivity)
+
+func update_sensitivity(value: float) -> void:
+	# Map user setting (0.1 to 1.0) to actual sensitivity
+	# Higher value = more sensitive (less movement needed)
+	horizontal_sensitivity = BASE_SENSITIVITY * value
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var touch = event as InputEventScreenTouch
+		# Don't process if touch is in UI area (let buttons handle it)
+		if _is_in_ui_area(touch.position):
+			return
 		if touch.pressed:
 			_start_touch(touch)
 		elif touch.index == touch_index:
@@ -35,11 +57,21 @@ func _input(event: InputEvent) -> void:
 		if drag.index == touch_index and is_active:
 			_update_touch(drag)
 
-func _start_touch(touch: InputEventScreenTouch) -> void:
+func _is_in_ui_area(pos: Vector2) -> bool:
 	var viewport_size = get_viewport().get_visible_rect().size
-	if touch.position.y < viewport_size.y * 0.1:
-		return
 	
+	# Top 15% of screen (HUD area)
+	if pos.y < viewport_size.y * 0.15:
+		return true
+	
+	# Top-right corner (settings button area: 80px from right, 150px from top)
+	if pos.y < 150 and pos.x > viewport_size.x - 80:
+		return true
+	
+	return false
+
+func _start_touch(touch: InputEventScreenTouch) -> void:
+	# UI area check is now done in _input() before calling this
 	if touch_index == -1:
 		touch_index = touch.index
 		touch_start_position = touch.position
@@ -60,8 +92,8 @@ func _update_touch(drag: InputEventScreenDrag) -> void:
 	var pos = drag.position
 	var delta = pos - touch_start_position
 	
-	# HORIZONTAL - instant response
-	current_horizontal = clamp(delta.x * HORIZONTAL_SENSITIVITY, -1.0, 1.0)
+	# HORIZONTAL - instant response with configurable sensitivity
+	current_horizontal = clamp(delta.x * horizontal_sensitivity, -1.0, 1.0)
 	joystick_input.emit(Vector2(current_horizontal, 0))
 	
 	# JUMP - Two ways to trigger (very forgiving):

@@ -469,22 +469,49 @@ func update_visual_effects(delta: float) -> void:
 			trail_timer = trail_spawn_rate
 
 func spawn_trail() -> void:
-	var trail = ColorRect.new()
-	trail.size = Vector2(20, 30)
-	trail.position = global_position - Vector2(10, 20)
+	if not sprite or not sprite.sprite_frames:
+		return
 	
-	# Color based on state
+	# Create a sprite duplicate as the trail (ghost/shadow effect)
+	var trail = Sprite2D.new()
+	
+	# Get the current frame texture from the animated sprite
+	var current_animation = sprite.animation
+	var current_frame = sprite.frame
+	trail.texture = sprite.sprite_frames.get_frame_texture(current_animation, current_frame)
+	
+	# Match the player sprite's transform
+	# Offset the trail opposite to movement direction (trails behind the player)
+	var trail_offset = Vector2.ZERO
+	var speed = velocity.length()
+	if speed > 10:
+		# Normalize velocity and offset opposite to movement direction
+		var move_dir = velocity.normalized()
+		var offset_distance = clamp(speed * 0.04, 8, 25)  # Scale with speed, closer to player
+		trail_offset = -move_dir * offset_distance  # Opposite direction = behind player
+	trail.global_position = sprite.global_position + trail_offset
+	trail.scale = sprite.scale * current_visual_scale
+	trail.flip_h = sprite.flip_h
+	trail.rotation = sprite.rotation
+	
+	# Color based on state - create a ghost/shadow tint
 	if is_combo_active:
-		trail.color = Color(1, 0.8, 0.3, 0.4)
+		trail.modulate = Color(1.0, 0.8, 0.3, 0.5)  # Golden ghost
+	elif is_mega_jump_active:
+		trail.modulate = Color(0.5, 1.0, 0.5, 0.5)  # Green ghost
+	elif has_shield:
+		trail.modulate = Color(0.5, 0.7, 1.0, 0.5)  # Blue ghost
 	else:
-		trail.color = Color(0.4, 0.6, 1.0, 0.3)
+		trail.modulate = Color(0.4, 0.6, 1.0, 0.4)  # Default blue ghost
 	
 	get_parent().add_child(trail)
 	
-	# Fade out
+	# Fade out and slightly shrink for a nice effect
 	var tween = get_tree().create_tween()
-	tween.tween_property(trail, "modulate:a", 0.0, 0.2)
-	tween.tween_callback(trail.queue_free)
+	tween.set_parallel(true)
+	tween.tween_property(trail, "modulate:a", 0.0, 0.25)
+	tween.tween_property(trail, "scale", trail.scale * 0.8, 0.25)
+	tween.chain().tween_callback(trail.queue_free)
 
 func die() -> void:
 	player_died.emit()
