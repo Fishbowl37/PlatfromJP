@@ -20,11 +20,21 @@ var best_distance: float = 0.0
 # Danger indicator
 var danger_level: float = 0.0
 
+# Skin Manager
+var skin_manager: Node = null
+
 # Save data
 const SAVE_PATH = "user://icy_tower_save.cfg"
 
 func _ready() -> void:
+	_setup_skin_manager()
 	load_game_data()
+
+func _setup_skin_manager() -> void:
+	var SkinManagerScript = load("res://scripts/SkinManager.gd")
+	if SkinManagerScript:
+		skin_manager = SkinManagerScript.new()
+		add_child(skin_manager)
 
 func start_game() -> void:
 	is_game_active = true
@@ -88,6 +98,14 @@ func save_game_data() -> void:
 	config.set_value("game", "best_score", best_score)
 	config.set_value("game", "best_distance", best_distance)
 	config.set_value("settings", "joystick_sensitivity", joystick_sensitivity)
+	
+	# Save skin data
+	if skin_manager:
+		var skin_data = skin_manager.get_save_data()
+		config.set_value("skins", "coins", skin_data.get("coins", 0))
+		config.set_value("skins", "equipped_skin", skin_data.get("equipped_skin", "default"))
+		config.set_value("skins", "unlocked_skins", skin_data.get("unlocked_skins", ["default"]))
+	
 	config.save(SAVE_PATH)
 
 func load_game_data() -> void:
@@ -97,6 +115,15 @@ func load_game_data() -> void:
 		best_score = config.get_value("game", "best_score", 0)
 		best_distance = config.get_value("game", "best_distance", 0.0)
 		joystick_sensitivity = config.get_value("settings", "joystick_sensitivity", 0.4)
+		
+		# Load skin data
+		if skin_manager:
+			var skin_data = {
+				"coins": config.get_value("skins", "coins", 0),
+				"equipped_skin": config.get_value("skins", "equipped_skin", "default"),
+				"unlocked_skins": config.get_value("skins", "unlocked_skins", ["default", "knight", "karasu"])
+			}
+			skin_manager.load_save_data(skin_data)
 
 func get_best_score() -> int:
 	return best_score

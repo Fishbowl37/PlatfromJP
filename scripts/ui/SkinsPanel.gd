@@ -207,18 +207,10 @@ func open_panel() -> void:
 	_update_selection()
 
 func _get_skins() -> Dictionary:
+	# All skins are defined in SkinManager.gd - single source of truth
 	if skin_manager and skin_manager.has_method("get_all_skins"):
 		return skin_manager.get_all_skins()
-	return {
-		"default": {"name": "Classic", "price": 0, "icon": "🧍", "sprite_modulate": Color(1, 1, 1)},
-		"golden": {"name": "Golden", "price": 1000, "icon": "👑", "sprite_modulate": Color(1, 0.9, 0.5)},
-		"neon": {"name": "Neon", "price": 1500, "icon": "⚡", "sprite_modulate": Color(0.7, 1, 0.9)},
-		"fire": {"name": "Fire", "price": 2000, "icon": "🔥", "sprite_modulate": Color(1, 0.7, 0.5)},
-		"ice": {"name": "Ice", "price": 2000, "icon": "❄️", "sprite_modulate": Color(0.8, 0.95, 1)},
-		"shadow": {"name": "Shadow", "price": 2500, "icon": "🌑", "sprite_modulate": Color(0.5, 0.4, 0.6)},
-		"rainbow": {"name": "Rainbow", "price": 5000, "icon": "🌈", "sprite_modulate": Color(1, 1, 1)},
-		"ghost": {"name": "Ghost", "price": 3000, "icon": "👻", "sprite_modulate": Color(0.9, 0.9, 1, 0.85)}
-	}
+	return {"default": {"name": "Classic", "price": 0, "icon": "🧍", "sprite_modulate": Color(1, 1, 1)}}
 
 func _create_skin_button(skin_id: String, skin_data: Dictionary, pos: Vector2, size: int) -> Control:
 	var container = Control.new()
@@ -333,6 +325,20 @@ func _update_selection() -> void:
 	if preview_sprite and selected_skin in skins:
 		var skin_data = skins[selected_skin]
 		preview_sprite.modulate = skin_data.get("sprite_modulate", Color(1, 1, 1))
+		
+		# Load custom sprite frames if skin has them
+		var sprite_frames_path = skin_data.get("sprite_frames_path", "")
+		if sprite_frames_path != "":
+			var custom_frames = load(sprite_frames_path)
+			if custom_frames:
+				preview_sprite.sprite_frames = custom_frames
+				preview_sprite.play("idle")
+		else:
+			# Load default sprite frames
+			var default_frames = load("res://assets/sprites/player/player_frames.tres")
+			if default_frames:
+				preview_sprite.sprite_frames = default_frames
+				preview_sprite.play("idle")
 	
 	# Update name label
 	var name_label = get_node_or_null("SkinNameLabel")

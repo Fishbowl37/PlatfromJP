@@ -88,8 +88,18 @@ const SPEED_LINE_DISTANCE: float = 1000.0  # 100 meters (10 pixels = 1m)
 # Animation state
 var current_anim: String = "idle"
 
+# Skin resources
+var default_sprite_frames: SpriteFrames = null
+var current_skin_id: String = "default"
+var skin_base_modulate: Color = Color(1, 1, 1)
+
 func _ready() -> void:
 	last_floor_y = global_position.y
+	# Store default sprite frames for switching back
+	if sprite and sprite.sprite_frames:
+		default_sprite_frames = sprite.sprite_frames
+	# Apply equipped skin on ready
+	apply_equipped_skin()
 
 func _physics_process(delta: float) -> void:
 	# Smooth the touch input for better mobile feel
@@ -542,23 +552,23 @@ func update_visual_effects(delta: float) -> void:
 		else:
 			sprite.rotation = 0.0
 		
-		# Visual effects based on state
+		# Visual effects based on state (multiplied with skin base brightness)
 		if is_mega_jump_active:
 			# Green glow for mega jump
 			var glow = (sin(Time.get_ticks_msec() * 0.015) + 1) * 0.2 + 0.1
-			sprite.modulate = Color(0.7 + glow, 1.0 + glow, 0.7, 1.0)
+			sprite.modulate = skin_base_modulate * Color(0.7 + glow, 1.0 + glow, 0.7, 1.0)
 		elif has_shield:
 			# Blue shimmer for shield
 			var shimmer = (sin(Time.get_ticks_msec() * 0.008) + 1) * 0.15
-			sprite.modulate = Color(0.8 + shimmer, 0.9 + shimmer, 1.0 + shimmer, 1.0)
+			sprite.modulate = skin_base_modulate * Color(0.8 + shimmer, 0.9 + shimmer, 1.0 + shimmer, 1.0)
 		elif is_combo_active:
 			# Golden glow for combo
 			var glow = (sin(Time.get_ticks_msec() * 0.01) + 1) * 0.15 + 0.1
-			sprite.modulate = Color(1.0 + glow, 1.0 + glow * 0.5, 0.8, 1.0)
+			sprite.modulate = skin_base_modulate * Color(1.0 + glow, 1.0 + glow * 0.5, 0.8, 1.0)
 		elif is_on_ice:
-			sprite.modulate = Color(0.85, 0.92, 1.0)
+			sprite.modulate = skin_base_modulate * Color(0.85, 0.92, 1.0)
 		else:
-			sprite.modulate = Color(1, 1, 1)
+			sprite.modulate = skin_base_modulate
 	
 	# Trail effect when moving fast
 	if trail_enabled and abs(velocity.x) > 200:
@@ -822,6 +832,8 @@ func reset(spawn_position: Vector2) -> void:
 		sprite.scale = Vector2(0.5, 0.5)
 		sprite.rotation = 0.0
 		sprite.play("idle")
+	# Re-apply equipped skin (in case it changed)
+	apply_equipped_skin()
 	set_physics_process(true)
 
 func set_shield_active(active: bool) -> void:
@@ -857,3 +869,37 @@ func set_combo_jump_active(active: bool) -> void:
 		var tween = create_tween()
 		tween.tween_property(sprite, "scale", Vector2(0.6, 0.6), 0.1)
 		tween.tween_property(sprite, "scale", Vector2(0.5, 0.5), 0.2).set_trans(Tween.TRANS_ELASTIC)
+
+func apply_equipped_skin() -> void:
+	# Get the equipped skin from SkinManager (via GameManager)
+	if GameManager and GameManager.skin_manager:
+		var skin_id = GameManager.skin_manager.get_equipped_skin()
+		apply_skin(skin_id)
+
+func apply_skin(skin_id: String) -> void:
+	if not sprite:
+		return
+	
+	current_skin_id = skin_id
+	
+	# Get skin data from SkinManager
+	var skin_data: Dictionary = {}
+	if GameManager and GameManager.skin_manager:
+		skin_data = GameManager.skin_manager.get_skin_data(skin_id)
+	
+	# Store the skin's base modulate color for brightness
+	skin_base_modulate = skin_data.get("sprite_modulate", Color(1, 1, 1))
+	
+	# Check if skin has custom sprite frames
+	var sprite_frames_path = skin_data.get("sprite_frames_path", "")
+	if sprite_frames_path != "":
+		# Load custom sprite frames for this skin
+		var custom_frames = load(sprite_frames_path)
+		if custom_frames:
+			sprite.sprite_frames = custom_frames
+			sprite.play(current_anim)
+	else:
+		# Use default sprite frames
+		if default_sprite_frames:
+			sprite.sprite_frames = default_sprite_frames
+			sprite.play(current_anim)

@@ -20,12 +20,20 @@ var themes_panel: ThemesPanel
 # Skin manager reference
 var skin_manager: Node = null
 
+# Gem display
+var gem_label: Label = null
+
 func _ready() -> void:
 	_setup_panels()
 	_setup_character_animation()
 	_setup_buttons()
+	_setup_gem_display()
 	_start_floating_animation()
 	_animate_entrance()
+
+func _exit_tree() -> void:
+	if float_tween:
+		float_tween.kill()
 
 func _setup_panels() -> void:
 	# Setup settings panel
@@ -48,11 +56,9 @@ func _setup_panels() -> void:
 	_setup_skin_manager()
 
 func _setup_skin_manager() -> void:
-	# Create a local skin manager for the menu
-	var SkinManagerScript = load("res://scripts/SkinManager.gd")
-	if SkinManagerScript:
-		skin_manager = SkinManagerScript.new()
-		add_child(skin_manager)
+	# Use the global GameManager's skin manager
+	if GameManager and GameManager.skin_manager:
+		skin_manager = GameManager.skin_manager
 		skin_manager.skin_changed.connect(_on_skin_changed)
 	
 	# Pass skin manager to skins panel
@@ -62,10 +68,68 @@ func _setup_skin_manager() -> void:
 	# Update character with current skin
 	_update_character_skin()
 
+func _setup_gem_display() -> void:
+	# Create gem display container in top-right corner
+	var gem_container = PanelContainer.new()
+	gem_container.name = "GemContainer"
+	
+	# Style the container
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.05, 0.18, 0.9)
+	style.border_color = Color(0.2, 0.8, 0.9, 0.6)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	gem_container.add_theme_stylebox_override("panel", style)
+	
+	# Position in top-right
+	gem_container.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	gem_container.position = Vector2(-120, 12)
+	gem_container.size = Vector2(100, 36)
+	
+	# Create the label
+	gem_label = Label.new()
+	gem_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gem_label.add_theme_font_size_override("font_size", 18)
+	gem_label.add_theme_color_override("font_color", Color(0.3, 0.95, 1.0))
+	gem_container.add_child(gem_label)
+	
+	add_child(gem_container)
+	_update_gem_display()
+	
+	# Connect to skin manager's coins_changed signal to update display
+	if skin_manager:
+		skin_manager.coins_changed.connect(_on_coins_changed)
+
+func _update_gem_display() -> void:
+	if gem_label and skin_manager:
+		var coins = skin_manager.get_coins()
+		gem_label.text = "💎 %d" % coins
+
+func _on_coins_changed(_new_amount: int) -> void:
+	_update_gem_display()
+
 func _update_character_skin() -> void:
 	if character_sprite and skin_manager:
 		var skin_data = skin_manager.get_equipped_skin_data()
 		character_sprite.modulate = skin_data.get("sprite_modulate", Color(1, 1, 1))
+		
+		# Load custom sprite frames if skin has them
+		var sprite_frames_path = skin_data.get("sprite_frames_path", "")
+		if sprite_frames_path != "":
+			var custom_frames = load(sprite_frames_path)
+			if custom_frames:
+				character_sprite.sprite_frames = custom_frames
+				character_sprite.play("idle")
+		else:
+			# Load default sprite frames
+			var default_frames = load("res://assets/sprites/player/player_frames.tres")
+			if default_frames:
+				character_sprite.sprite_frames = default_frames
+				character_sprite.play("idle")
 
 func _on_skin_changed(_skin_id: String) -> void:
 	_update_character_skin()
@@ -95,9 +159,11 @@ func _start_floating_animation() -> void:
 
 func _do_float() -> void:
 	var char_display = $CenterContainer/CharacterDisplay
-	if not char_display:
+	if not is_instance_valid(char_display):
 		return
 	
+	if float_tween:
+		float_tween.kill()
 	float_tween = create_tween()
 	float_tween.set_trans(Tween.TRANS_SINE)
 	float_tween.set_ease(Tween.EASE_IN_OUT)
@@ -153,6 +219,19 @@ func _animate_entrance() -> void:
 			var tween = create_tween()
 			tween.tween_interval(0.5)
 			tween.tween_property(btn, "modulate:a", 1.0, 0.3)
+	
+	# Gem display - slide in from right
+	var gem_container = get_node_or_null("GemContainer")
+	if gem_container:
+		var original_x = gem_container.position.x
+		gem_container.position.x += 80
+		gem_container.modulate.a = 0
+		var tween = create_tween()
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.tween_interval(0.3)
+		tween.tween_property(gem_container, "position:x", original_x, 0.4)
+		tween.parallel().tween_property(gem_container, "modulate:a", 1.0, 0.3)
 
 func _on_play_pressed() -> void:
 	_button_press_effect(play_button)
@@ -184,6 +263,12 @@ func _on_skins_pressed() -> void:
 		if skin_manager:
 			skins_panel.set_skin_manager(skin_manager)
 		skins_panel.open_panel()
+		# Connect panel closed to refresh gem display
+		if not skins_panel.closed.is_connected(_on_skins_panel_closed):
+			skins_panel.closed.connect(_on_skins_panel_closed)
+
+func _on_skins_panel_closed() -> void:
+	_update_gem_display()
 
 func _on_themes_pressed() -> void:
 	_button_press_effect(themes_button)

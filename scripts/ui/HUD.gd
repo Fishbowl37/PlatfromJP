@@ -43,6 +43,10 @@ func _ready() -> void:
 	if streak_icon:
 		start_streak_pulse()
 
+func _exit_tree() -> void:
+	if streak_pulse_tween:
+		streak_pulse_tween.kill()
+
 func _process(delta: float) -> void:
 	# Update screen shake
 	if shake_intensity > 0:
@@ -85,6 +89,8 @@ func update_danger_vignette() -> void:
 func start_streak_pulse() -> void:
 	if streak_pulse_tween:
 		streak_pulse_tween.kill()
+	if not is_instance_valid(streak_icon):
+		return
 	streak_pulse_tween = get_tree().create_tween().set_loops()
 	streak_pulse_tween.tween_property(streak_icon, "scale", Vector2(1.2, 1.2), 0.3).set_ease(Tween.EASE_IN_OUT)
 	streak_pulse_tween.tween_property(streak_icon, "scale", Vector2(1.0, 1.0), 0.3).set_ease(Tween.EASE_IN_OUT)
@@ -287,7 +293,11 @@ func create_power_up_indicator(type: int, duration: float) -> Control:
 		# Animate bar drain
 		var bar_tween = get_tree().create_tween()
 		bar_tween.tween_property(bar_fill, "size:x", 0.0, duration)
-		bar_tween.tween_callback(func(): remove_power_up_indicator(type))
+		var hud_ref = self
+		bar_tween.tween_callback(func(): 
+			if is_instance_valid(hud_ref):
+				hud_ref.remove_power_up_indicator(type)
+		)
 	
 	return container
 

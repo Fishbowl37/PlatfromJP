@@ -65,9 +65,9 @@ const TYPE_CONFIG = {
 		"icon": "💎",
 		"color": Color(0.2, 0.9, 1.0),
 		"glow_color": Color(0.2, 0.9, 1.0, 0.4),
-		"name": "BONUS",
-		"duration": 0.0,  # Instant - just points
-		"points": 500
+		"name": "GEM",
+		"duration": 0.0,  # Instant - adds 1-3 gems
+		"points": 0
 	}
 }
 

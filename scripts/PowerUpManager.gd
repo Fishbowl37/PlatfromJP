@@ -79,11 +79,6 @@ func expire_effect(type: PowerUp.Type) -> void:
 func on_power_up_collected(power_up: PowerUp) -> void:
 	var type = power_up.get_type()
 	var duration = power_up.get_duration()
-	var points = power_up.get_points()
-	
-	# Add bonus points
-	if points > 0:
-		GameManager.add_score(int(points * score_multiplier))
 	
 	# Apply effect based on type
 	match type:
@@ -96,8 +91,12 @@ func on_power_up_collected(power_up: PowerUp) -> void:
 		PowerUp.Type.MEGA_JUMP:
 			activate_mega_jump(duration)
 		PowerUp.Type.COIN:
-			# Just points, show brief indicator
-			power_up_activated.emit(type, 0.0)
+			# Add 1-3 random gems to player's coin balance
+			var gems_collected = randi_range(1, 3)
+			if GameManager.skin_manager:
+				GameManager.skin_manager.add_coins(gems_collected)
+				GameManager.save_game_data()
+			power_up_activated.emit(type, float(gems_collected))
 	
 	# Remove from active list
 	active_power_ups.erase(power_up)

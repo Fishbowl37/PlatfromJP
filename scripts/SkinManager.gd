@@ -12,8 +12,8 @@ var coins: int = 0
 # Currently equipped skin
 var equipped_skin: String = "default"
 
-# Unlocked skins (default is always unlocked)
-var unlocked_skins: Array[String] = ["default"]
+# Unlocked skins (free skins are always unlocked)
+var unlocked_skins: Array[String] = ["default", "knight", "karasu"]
 
 # Skin definitions - add new skins here!
 const SKINS = {
@@ -27,15 +27,27 @@ const SKINS = {
 		"sprite_modulate": Color(1, 1, 1),
 		"icon": "🧍"
 	},
-	"golden": {
-		"name": "Golden Hero",
-		"description": "Shine bright like gold",
-		"price": 1000,
-		"color_primary": Color(1, 0.85, 0.2),
-		"color_secondary": Color(1, 0.7, 0.1),
-		"trail_color": Color(1, 0.8, 0.2, 0.6),
-		"sprite_modulate": Color(1, 0.9, 0.5),
-		"icon": "👑"
+	"knight": {
+		"name": "Knight",
+		"description": "A brave knight in armor",
+		"price": 0,
+		"color_primary": Color(0.7, 0.7, 0.8),
+		"color_secondary": Color(0.5, 0.5, 0.6),
+		"trail_color": Color(0.6, 0.6, 0.8, 0.6),
+		"sprite_modulate": Color(1, 1, 1),
+		"sprite_frames_path": "res://assets/sprites/player/knight/knight_frames.tres",
+		"icon": "⚔️"
+	},
+	"karasu": {
+		"name": "Karasu",
+		"description": "Swift as a shadow raven",
+		"price": 0,
+		"color_primary": Color(0.2, 0.2, 0.3),
+		"color_secondary": Color(0.1, 0.1, 0.15),
+		"trail_color": Color(0.3, 0.2, 0.4, 0.6),
+		"sprite_modulate": Color(2.5, 2.5, 2.5),
+		"sprite_frames_path": "res://assets/sprites/player/Karasu/karasu_frames.tres",
+		"icon": "🪶"
 	},
 	"neon": {
 		"name": "Neon Runner",
@@ -194,8 +206,17 @@ func get_save_data() -> Dictionary:
 func load_save_data(data: Dictionary) -> void:
 	coins = data.get("coins", 0)
 	equipped_skin = data.get("equipped_skin", "default")
-	unlocked_skins = data.get("unlocked_skins", ["default"])
 	
-	# Ensure default is always there
+	# Convert generic Array to Array[String]
+	unlocked_skins.clear()
+	var loaded_skins = data.get("unlocked_skins", ["default"])
+	for skin_id in loaded_skins:
+		unlocked_skins.append(str(skin_id))
+	
+	# Ensure free skins are always unlocked
 	if not "default" in unlocked_skins:
 		unlocked_skins.append("default")
+	if not "knight" in unlocked_skins:
+		unlocked_skins.append("knight")
+	if not "karasu" in unlocked_skins:
+		unlocked_skins.append("karasu")
