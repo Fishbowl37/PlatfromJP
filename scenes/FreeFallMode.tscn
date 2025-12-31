@@ -1,0 +1,104 @@
+[gd_scene load_steps=8 format=3 uid="uid://freefall123"]
+
+[ext_resource type="Script" path="res://scripts/FreeFallMode.gd" id="1_freefall"]
+[ext_resource type="PackedScene" uid="uid://player123" path="res://scenes/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://camera123" path="res://scenes/GameCamera.tscn" id="3_camera"]
+[ext_resource type="PackedScene" uid="uid://hud123" path="res://scenes/ui/HUD.tscn" id="4_hud"]
+[ext_resource type="PackedScene" uid="uid://touch123" path="res://scenes/ui/TouchControls.tscn" id="5_touch"]
+[ext_resource type="PackedScene" uid="uid://gameover123" path="res://scenes/ui/GameOver.tscn" id="6_gameover"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(40, 200000)
+
+[node name="FreeFallMode" type="Node2D"]
+script = ExtResource("1_freefall")
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -10
+offset_left = -1000.0
+offset_top = -5000.0
+offset_right = 1500.0
+offset_bottom = 200000.0
+color = Color(0.08, 0.03, 0.02, 1)
+
+[node name="TowerBackground" type="ColorRect" parent="."]
+z_index = -5
+offset_left = 20.0
+offset_top = -5000.0
+offset_right = 460.0
+offset_bottom = 200000.0
+color = Color(0.12, 0.06, 0.04, 1)
+
+[node name="TowerGlow" type="ColorRect" parent="."]
+z_index = -4
+offset_left = 22.0
+offset_top = -5000.0
+offset_right = 458.0
+offset_bottom = 200000.0
+color = Color(0.2, 0.08, 0.05, 0.5)
+
+[node name="LeftWall" type="StaticBody2D" parent="."]
+position = Vector2(20, 0)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall"]
+position = Vector2(-20, 95000)
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="Visual" type="ColorRect" parent="LeftWall"]
+z_index = 1
+offset_left = -40.0
+offset_top = -5000.0
+offset_bottom = 200000.0
+color = Color(0.15, 0.06, 0.04, 1)
+
+[node name="GlowEdge" type="ColorRect" parent="LeftWall"]
+z_index = 2
+offset_left = -1.0
+offset_top = -5000.0
+offset_right = 1.0
+offset_bottom = 200000.0
+color = Color(0.9, 0.4, 0.3, 0.6)
+
+[node name="RightWall" type="StaticBody2D" parent="."]
+position = Vector2(460, 0)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall"]
+position = Vector2(20, 95000)
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="Visual" type="ColorRect" parent="RightWall"]
+z_index = 1
+offset_top = -5000.0
+offset_right = 40.0
+offset_bottom = 200000.0
+color = Color(0.15, 0.06, 0.04, 1)
+
+[node name="GlowEdge" type="ColorRect" parent="RightWall"]
+z_index = 2
+offset_left = -1.0
+offset_top = -5000.0
+offset_right = 1.0
+offset_bottom = 200000.0
+color = Color(0.9, 0.4, 0.3, 0.6)
+
+[node name="ObstacleContainer" type="Node2D" parent="."]
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(240, 100)
+
+[node name="GameCamera" parent="." instance=ExtResource("3_camera")]
+position = Vector2(240, 300)
+
+[node name="UI" type="Node" parent="."]
+
+[node name="HUD" parent="UI" instance=ExtResource("4_hud")]
+
+[node name="TouchControls" parent="UI" instance=ExtResource("5_touch")]
+
+[node name="GameOver" parent="UI" instance=ExtResource("6_gameover")]
+visible = false
+

@@ -41,7 +41,7 @@ func format_distance(dist: float) -> String:
 		return "%.1fkm" % (dist / 1000.0)
 	return "%dm" % int(dist)
 
-func show_game_over(score: int, distance_reached: float, best_score: int) -> void:
+func show_game_over(score: int, distance_reached: float, best_score: int, distance_label_text: String = "HEIGHT") -> void:
 	final_score = score
 	final_distance = distance_reached
 	is_new_best = score > best_score
@@ -50,7 +50,7 @@ func show_game_over(score: int, distance_reached: float, best_score: int) -> voi
 	if score_label:
 		score_label.text = format_number(score)
 	if distance_label:
-		distance_label.text = "📏 HEIGHT: %s" % format_distance(distance_reached)
+		distance_label.text = "📏 %s: %s" % [distance_label_text, format_distance(distance_reached)]
 	if best_label:
 		if is_new_best:
 			best_label.text = "★ NEW BEST! ★"

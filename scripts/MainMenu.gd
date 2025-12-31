@@ -2,8 +2,7 @@ extends Control
 
 @onready var character_sprite: AnimatedSprite2D = $CenterContainer/CharacterDisplay/AnimatedSprite2D
 @onready var play_button: Button = $ButtonContainer/PlayButton
-@onready var stages_button: Button = $ButtonContainer/SecondaryButtons/StagesButton
-@onready var competition_button: Button = $ButtonContainer/SecondaryButtons/CompetitionButton
+@onready var free_fall_button: Button = $ButtonContainer/SecondaryButtons/FreeFallButton
 @onready var settings_button: Button = $ButtonContainer/BottomRow/SettingsButton
 @onready var skins_button: Button = $ButtonContainer/BottomRow/SkinsButton
 @onready var themes_button: Button = $ButtonContainer/BottomRow/ThemesButton
@@ -144,8 +143,7 @@ func _setup_character_animation() -> void:
 
 func _setup_buttons() -> void:
 	play_button.pressed.connect(_on_play_pressed)
-	stages_button.pressed.connect(_on_stages_pressed)
-	competition_button.pressed.connect(_on_competition_pressed)
+	free_fall_button.pressed.connect(_on_free_fall_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	skins_button.pressed.connect(_on_skins_pressed)
 	themes_button.pressed.connect(_on_themes_pressed)
@@ -197,7 +195,7 @@ func _animate_entrance() -> void:
 		tween.parallel().tween_property(play_button, "modulate:a", 1.0, 0.3)
 	
 	# Secondary buttons - slide in from sides
-	var secondary_buttons = [stages_button, competition_button]
+	var secondary_buttons = [free_fall_button]
 	for i in range(secondary_buttons.size()):
 		var btn = secondary_buttons[i]
 		if btn:
@@ -244,13 +242,16 @@ func _on_play_pressed() -> void:
 func _go_to_game() -> void:
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
-func _on_stages_pressed() -> void:
-	_button_press_effect(stages_button)
-	_show_coming_soon("Stages")
+func _on_free_fall_pressed() -> void:
+	_button_press_effect(free_fall_button)
+	var tween = create_tween()
+	tween.set_trans(Tween.TRANS_QUAD)
+	tween.set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(_go_to_free_fall)
 
-func _on_competition_pressed() -> void:
-	_button_press_effect(competition_button)
-	_show_coming_soon("Competition")
+func _go_to_free_fall() -> void:
+	get_tree().change_scene_to_file("res://scenes/FreeFallMode.tscn")
 
 func _on_settings_pressed() -> void:
 	_button_press_effect(settings_button)

@@ -250,31 +250,18 @@ layout_mode = 2
 size_flags_vertical = 0
 theme_override_constants/separation = 10
 
-[node name="StagesButton" type="Button" parent="ButtonContainer/SecondaryButtons"]
+[node name="FreeFallButton" type="Button" parent="ButtonContainer/SecondaryButtons"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
-theme_override_colors/font_hover_color = Color(1, 0.95, 1, 1)
+theme_override_colors/font_color = Color(1, 0.6, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.6, 1)
 theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("StyleBox_SecondaryButton")
 theme_override_styles/hover = SubResource("StyleBox_SecondaryButtonHover")
 theme_override_styles/pressed = SubResource("StyleBox_SecondaryButton")
 theme_override_styles/focus = SubResource("StyleBox_SecondaryButton")
-text = "STAGES"
-
-[node name="CompetitionButton" type="Button" parent="ButtonContainer/SecondaryButtons"]
-custom_minimum_size = Vector2(0, 48)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
-theme_override_colors/font_hover_color = Color(1, 0.95, 1, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_styles/normal = SubResource("StyleBox_SecondaryButton")
-theme_override_styles/hover = SubResource("StyleBox_SecondaryButtonHover")
-theme_override_styles/pressed = SubResource("StyleBox_SecondaryButton")
-theme_override_styles/focus = SubResource("StyleBox_SecondaryButton")
-text = "COMPETE"
+text = "FREE FALL"
 
 [node name="Spacer" type="Control" parent="ButtonContainer"]
 custom_minimum_size = Vector2(0, 4)

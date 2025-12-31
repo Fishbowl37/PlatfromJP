@@ -378,14 +378,11 @@ func _on_action_pressed() -> void:
 	
 	if skin_manager.is_skin_unlocked(selected_skin):
 		skin_manager.equip_skin(selected_skin)
+		close_panel()
 	else:
 		if skin_manager.unlock_skin(selected_skin):
 			skin_manager.equip_skin(selected_skin)
-			var coins_label = get_node_or_null("CoinsLabel")
-			if coins_label:
-				coins_label.text = "💎 %d" % skin_manager.get_coins()
-	
-	_update_selection()
+			close_panel()
 
 func close_panel() -> void:
 	if not is_open:
