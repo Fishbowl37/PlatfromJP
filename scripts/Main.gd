@@ -33,9 +33,6 @@ var combo_system: ComboSystem
 # Power-up manager
 var power_up_manager: PowerUpManager
 
-# Settings panel
-var settings_panel: SettingsPanel
-
 # Zone tracking
 var current_zone: String = ""
 
@@ -88,11 +85,6 @@ func setup_game() -> void:
 	# Setup power-up manager
 	power_up_manager = PowerUpManager.new()
 	add_child(power_up_manager)
-	
-	# Setup settings panel
-	settings_panel = SettingsPanel.new()
-	settings_panel.process_mode = Node.PROCESS_MODE_ALWAYS  # Work when paused
-	$UI.add_child(settings_panel)
 	
 	# Position walls
 	if left_wall:
@@ -167,10 +159,6 @@ func connect_signals() -> void:
 	if game_over_screen:
 		game_over_screen.restart_requested.connect(_on_restart_requested)
 		game_over_screen.menu_requested.connect(_on_menu_requested)
-	
-	# HUD settings button
-	if hud:
-		hud.settings_requested.connect(_on_settings_requested)
 
 func start_game() -> void:
 	GameManager.start_game()
@@ -258,11 +246,7 @@ func _on_restart_requested() -> void:
 	restart_game()
 
 func _on_menu_requested() -> void:
-	restart_game()
-
-func _on_settings_requested() -> void:
-	if settings_panel:
-		settings_panel.open_panel()
+	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 
 func restart_game() -> void:
 	if player:

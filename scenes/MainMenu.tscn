@@ -1,0 +1,352 @@
+[gd_scene load_steps=10 format=3 uid="uid://mainmenu123"]
+
+[ext_resource type="Script" path="res://scripts/MainMenu.gd" id="1_mainmenu"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/player/player_frames.tres" id="2_frames"]
+
+[sub_resource type="Gradient" id="Gradient_bg"]
+colors = PackedColorArray(0.02, 0.01, 0.08, 1, 0.08, 0.04, 0.2, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_bg"]
+gradient = SubResource("Gradient_bg")
+width = 1
+height = 512
+fill = 1
+fill_from = Vector2(0.5, 0)
+fill_to = Vector2(0.5, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_PlayButton"]
+bg_color = Color(0.45, 0.18, 0.95, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.7, 0.5, 1, 0.9)
+corner_radius_left = 28
+corner_radius_top = 28
+corner_radius_right = 28
+corner_radius_bottom = 28
+shadow_color = Color(0.5, 0.2, 1, 0.5)
+shadow_size = 12
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_PlayButtonHover"]
+bg_color = Color(0.55, 0.25, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.85, 0.7, 1, 1)
+corner_radius_left = 28
+corner_radius_top = 28
+corner_radius_right = 28
+corner_radius_bottom = 28
+shadow_color = Color(0.6, 0.3, 1, 0.7)
+shadow_size = 16
+shadow_offset = Vector2(0, 6)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_SecondaryButton"]
+bg_color = Color(0.12, 0.08, 0.25, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.45, 0.3, 0.7, 0.7)
+corner_radius_left = 20
+corner_radius_top = 20
+corner_radius_right = 20
+corner_radius_bottom = 20
+shadow_color = Color(0.3, 0.15, 0.6, 0.3)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_SecondaryButtonHover"]
+bg_color = Color(0.18, 0.12, 0.35, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.6, 0.45, 0.9, 0.9)
+corner_radius_left = 20
+corner_radius_top = 20
+corner_radius_right = 20
+corner_radius_bottom = 20
+shadow_color = Color(0.4, 0.2, 0.7, 0.5)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_SmallButton"]
+bg_color = Color(0.08, 0.05, 0.18, 0.8)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.25, 0.55, 0.6)
+corner_radius_left = 14
+corner_radius_top = 14
+corner_radius_right = 14
+corner_radius_bottom = 14
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mainmenu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.015, 0.06, 1)
+
+[node name="BGGradient" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = SubResource("GradientTexture2D_bg")
+stretch_mode = 1
+
+[node name="GlowLeft" type="ColorRect" parent="."]
+modulate = Color(1, 1, 1, 0.08)
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.15
+anchor_right = 0.08
+anchor_bottom = 0.85
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.6, 0.3, 1, 1)
+
+[node name="GlowRight" type="ColorRect" parent="."]
+modulate = Color(1, 1, 1, 0.08)
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.92
+anchor_top = 0.15
+anchor_right = 1.0
+anchor_bottom = 0.85
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.6, 0.3, 1, 1)
+
+[node name="TitleContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_top = 0.06
+anchor_right = 0.9
+anchor_bottom = 0.16
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = -4
+alignment = 1
+
+[node name="GameTitle" type="Label" parent="TitleContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.5, 0.2, 1, 0.8)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 48
+text = "Platform JP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubTitle" type="Label" parent="TitleContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.45, 0.85, 0.7)
+theme_override_font_sizes/font_size = 14
+text = "M O B I L E"
+horizontal_alignment = 1
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.1
+anchor_top = 0.16
+anchor_right = 0.9
+anchor_bottom = 0.48
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CharacterDisplay" type="Control" parent="CenterContainer"]
+custom_minimum_size = Vector2(120, 180)
+layout_mode = 2
+
+[node name="GlowOuter" type="ColorRect" parent="CenterContainer/CharacterDisplay"]
+modulate = Color(1, 1, 1, 0.1)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -70.0
+offset_top = -30.0
+offset_right = 70.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.5, 0.3, 1, 1)
+
+[node name="GlowInner" type="ColorRect" parent="CenterContainer/CharacterDisplay"]
+modulate = Color(1, 1, 1, 0.15)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -45.0
+offset_top = -10.0
+offset_right = 45.0
+offset_bottom = 35.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.6, 0.4, 1, 1)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="CenterContainer/CharacterDisplay"]
+position = Vector2(60, 90)
+scale = Vector2(3, 3)
+sprite_frames = ExtResource("2_frames")
+animation = &"idle"
+autoplay = "idle"
+
+[node name="ButtonContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.12
+anchor_top = 0.5
+anchor_right = 0.88
+anchor_bottom = 0.88
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="PlayButton" type="Button" parent="ButtonContainer"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.95, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 26
+theme_override_styles/normal = SubResource("StyleBox_PlayButton")
+theme_override_styles/hover = SubResource("StyleBox_PlayButtonHover")
+theme_override_styles/pressed = SubResource("StyleBox_PlayButton")
+theme_override_styles/focus = SubResource("StyleBox_PlayButton")
+text = "PLAY"
+
+[node name="SecondaryButtons" type="HBoxContainer" parent="ButtonContainer"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="StagesButton" type="Button" parent="ButtonContainer/SecondaryButtons"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/hover = SubResource("StyleBox_SecondaryButtonHover")
+theme_override_styles/pressed = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/focus = SubResource("StyleBox_SecondaryButton")
+text = "STAGES"
+
+[node name="CompetitionButton" type="Button" parent="ButtonContainer/SecondaryButtons"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.85, 0.8, 0.95, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/hover = SubResource("StyleBox_SecondaryButtonHover")
+theme_override_styles/pressed = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/focus = SubResource("StyleBox_SecondaryButton")
+text = "COMPETE"
+
+[node name="Spacer" type="Control" parent="ButtonContainer"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="BottomRow" type="HBoxContainer" parent="ButtonContainer"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="SettingsButton" type="Button" parent="ButtonContainer/BottomRow"]
+custom_minimum_size = Vector2(70, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.55, 0.8, 0.9)
+theme_override_colors/font_hover_color = Color(0.85, 0.75, 1, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_SmallButton")
+theme_override_styles/hover = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/pressed = SubResource("StyleBox_SmallButton")
+theme_override_styles/focus = SubResource("StyleBox_SmallButton")
+text = "⚙"
+
+[node name="SkinsButton" type="Button" parent="ButtonContainer/BottomRow"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 0.9)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBox_SmallButton")
+theme_override_styles/hover = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/pressed = SubResource("StyleBox_SmallButton")
+theme_override_styles/focus = SubResource("StyleBox_SmallButton")
+text = "SKINS"
+
+[node name="ThemesButton" type="Button" parent="ButtonContainer/BottomRow"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 0.8, 0.9)
+theme_override_colors/font_hover_color = Color(0.6, 1, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBox_SmallButton")
+theme_override_styles/hover = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/pressed = SubResource("StyleBox_SmallButton")
+theme_override_styles/focus = SubResource("StyleBox_SmallButton")
+text = "THEMES"
+
+[node name="LeaderboardButton" type="Button" parent="ButtonContainer/BottomRow"]
+custom_minimum_size = Vector2(70, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.55, 0.8, 0.9)
+theme_override_colors/font_hover_color = Color(0.85, 0.75, 1, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBox_SmallButton")
+theme_override_styles/hover = SubResource("StyleBox_SecondaryButton")
+theme_override_styles/pressed = SubResource("StyleBox_SmallButton")
+theme_override_styles/focus = SubResource("StyleBox_SmallButton")
+text = "🏆"
+
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -30.0
+offset_top = -24.0
+offset_right = 30.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.4, 0.3, 0.6, 0.4)
+theme_override_font_sizes/font_size = 11
+text = "v1.0"
+horizontal_alignment = 1

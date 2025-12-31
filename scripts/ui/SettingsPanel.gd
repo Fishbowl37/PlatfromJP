@@ -81,9 +81,22 @@ func open_panel() -> void:
 	top_line.size = Vector2(pw - 20, 2)
 	add_child(top_line)
 	
+	# === CLOSE BUTTON - Minimal style ===
+	var close_btn = Button.new()
+	close_btn.text = "×"
+	close_btn.position = Vector2(px + 10, py + 8)
+	close_btn.size = Vector2(32, 32)
+	close_btn.flat = true
+	close_btn.add_theme_font_size_override("font_size", 28)
+	close_btn.add_theme_color_override("font_color", Color(0.7, 0.6, 0.9))
+	close_btn.add_theme_color_override("font_hover_color", Color(1, 0.4, 0.4))
+	close_btn.add_theme_color_override("font_pressed_color", Color(1, 0.3, 0.3))
+	close_btn.pressed.connect(close_panel)
+	add_child(close_btn)
+	
 	# === TITLE ===
 	var title = Label.new()
-	title.text = "✦ SETTINGS ✦"
+	title.text = "SETTINGS"
 	title.position = Vector2(px, py + 18)
 	title.size = Vector2(pw, 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

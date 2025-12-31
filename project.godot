@@ -10,9 +10,9 @@ config_version=5
 
 [application]
 
-config/name="Icy Tower Mobile"
-config/description="An Icy Tower-style endless platformer for mobile devices"
-run/main_scene="res://scenes/Main.tscn"
+config/name="Platform JP"
+config/description="An Platform JP-style endless platformer for mobile devices"
+run/main_scene="res://scenes/MainMenu.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
 config/icon="res://icon.svg"
 
