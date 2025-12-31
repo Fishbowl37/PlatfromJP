@@ -49,66 +49,16 @@ const SKINS = {
 		"sprite_frames_path": "res://assets/sprites/player/Karasu/karasu_frames.tres",
 		"icon": "🪶"
 	},
-	"neon": {
-		"name": "Neon Runner",
-		"description": "Cyberpunk vibes",
-		"price": 1500,
-		"color_primary": Color(0, 1, 0.8),
-		"color_secondary": Color(1, 0, 0.8),
-		"trail_color": Color(0, 1, 0.9, 0.6),
-		"sprite_modulate": Color(0.7, 1, 0.9),
-		"icon": "⚡"
-	},
-	"fire": {
-		"name": "Flame Walker",
-		"description": "Born from fire",
-		"price": 2000,
-		"color_primary": Color(1, 0.4, 0.1),
-		"color_secondary": Color(1, 0.2, 0),
-		"trail_color": Color(1, 0.5, 0.1, 0.7),
-		"sprite_modulate": Color(1, 0.7, 0.5),
-		"icon": "🔥"
-	},
-	"ice": {
-		"name": "Frost Spirit",
-		"description": "Cold as ice",
-		"price": 2000,
-		"color_primary": Color(0.6, 0.9, 1),
-		"color_secondary": Color(0.3, 0.7, 1),
-		"trail_color": Color(0.7, 0.9, 1, 0.6),
-		"sprite_modulate": Color(0.8, 0.95, 1),
-		"icon": "❄️"
-	},
-	"shadow": {
-		"name": "Shadow",
-		"description": "One with the darkness",
-		"price": 2500,
-		"color_primary": Color(0.3, 0.2, 0.4),
-		"color_secondary": Color(0.1, 0.05, 0.15),
-		"trail_color": Color(0.4, 0.2, 0.6, 0.5),
-		"sprite_modulate": Color(0.5, 0.4, 0.6),
-		"icon": "🌑"
-	},
-	"rainbow": {
-		"name": "Prismatic",
-		"description": "All colors of the spectrum",
-		"price": 5000,
-		"color_primary": Color(1, 1, 1),  # Will cycle colors
-		"color_secondary": Color(1, 1, 1),
-		"trail_color": Color(1, 0.5, 0.5, 0.6),
+	"kitsune": {
+		"name": "Kitsune",
+		"description": "A mystical fox spirit",
+		"price": 1000,
+		"color_primary": Color(1.0, 0.8, 0.4),
+		"color_secondary": Color(0.9, 0.5, 0.2),
+		"trail_color": Color(1.0, 0.7, 0.3, 0.6),
 		"sprite_modulate": Color(1, 1, 1),
-		"is_animated": true,
-		"icon": "🌈"
-	},
-	"ghost": {
-		"name": "Phantom",
-		"description": "Between worlds",
-		"price": 3000,
-		"color_primary": Color(0.8, 0.8, 1),
-		"color_secondary": Color(0.6, 0.6, 0.9),
-		"trail_color": Color(0.7, 0.7, 1, 0.4),
-		"sprite_modulate": Color(0.9, 0.9, 1, 0.85),
-		"icon": "👻"
+		"sprite_frames_path": "res://assets/sprites/player/Kitsune/kitsune_frames.tres",
+		"icon": "🦊"
 	}
 }
 

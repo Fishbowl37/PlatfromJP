@@ -20,6 +20,10 @@ signal player_fell_off_screen
 @export var speed_milestone_4: float = 60.0   # Speed at floor ~1200 (ice zone)
 @export var speed_milestone_5: float = 80.0   # Speed at floor ~1500 (spring zone)
 
+@export_group("Distance Speed Boost")
+@export var speed_boost_interval: float = 20000.0  # Every 2000m (20000 pixels) add a speed boost
+@export var speed_boost_amount: float = 8.0        # Speed added per 2000m milestone
+
 @export_group("Death Zone")
 @export var death_offset: float = 450.0
 @export var hurry_up_threshold: float = 200.0  # Distance before danger warning
@@ -95,24 +99,33 @@ func calculate_scroll_speed() -> float:
 	
 	# Zone-based speed increases matching floor zones
 	# Floor spacing ~120, so floor 300 ≈ 36000 height
+	var zone_speed: float = base_scroll_speed
+	
 	if height_climbed < 36000:  # Floor 1-300: Learning
 		var t = height_climbed / 36000.0
-		return lerp(base_scroll_speed, speed_milestone_1, t)
+		zone_speed = lerp(base_scroll_speed, speed_milestone_1, t)
 	elif height_climbed < 72000:  # Floor 300-600: Moving Zone
 		var t = (height_climbed - 36000.0) / 36000.0
-		return lerp(speed_milestone_1, speed_milestone_2, t)
+		zone_speed = lerp(speed_milestone_1, speed_milestone_2, t)
 	elif height_climbed < 108000:  # Floor 600-900: Crumbling Zone
 		var t = (height_climbed - 72000.0) / 36000.0
-		return lerp(speed_milestone_2, speed_milestone_3, t)
+		zone_speed = lerp(speed_milestone_2, speed_milestone_3, t)
 	elif height_climbed < 144000:  # Floor 900-1200: Ice Zone
 		var t = (height_climbed - 108000.0) / 36000.0
-		return lerp(speed_milestone_3, speed_milestone_4, t)
+		zone_speed = lerp(speed_milestone_3, speed_milestone_4, t)
 	elif height_climbed < 180000:  # Floor 1200-1500: Spring Zone
 		var t = (height_climbed - 144000.0) / 36000.0
-		return lerp(speed_milestone_4, speed_milestone_5, t)
+		zone_speed = lerp(speed_milestone_4, speed_milestone_5, t)
 	else:  # Floor 1500+: Endgame
 		var t = (height_climbed - 180000.0) / 60000.0
-		return lerp(speed_milestone_5, max_scroll_speed, min(t, 1.0))
+		zone_speed = lerp(speed_milestone_5, max_scroll_speed, min(t, 1.0))
+	
+	# Add distance-based speed boost every 2000m
+	var distance_milestones = int(height_climbed / speed_boost_interval)
+	var distance_boost = distance_milestones * speed_boost_amount
+	
+	# Return combined speed, capped at max
+	return min(zone_speed + distance_boost, max_scroll_speed)
 
 func update_hurry_warning() -> void:
 	if player == null:

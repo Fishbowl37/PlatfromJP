@@ -36,9 +36,15 @@ var active_power_up_indicators: Dictionary = {}  # PowerUp.Type -> indicator nod
 # Pulse animation for streak icon
 var streak_pulse_tween: Tween
 
+# Environmental hazard indicators
+var wind_indicator: Control = null
+var vortex_indicator: Control = null
+var current_wind_direction: int = 0  # 0 = none, 1 = right, -1 = left
+
 func _ready() -> void:
 	create_danger_vignette()
 	create_power_up_container()
+	create_hazard_indicators()
 	update_display()
 	if streak_icon:
 		start_streak_pulse()
@@ -68,6 +74,89 @@ func create_power_up_container() -> void:
 	power_up_container.position = Vector2(10, 62)
 	power_up_container.add_theme_constant_override("separation", 8)
 	add_child(power_up_container)
+
+func create_hazard_indicators() -> void:
+	var viewport_size = get_viewport().get_visible_rect().size
+	
+	# Wind indicator (left/right arrows on screen edges)
+	wind_indicator = Control.new()
+	wind_indicator.name = "WindIndicator"
+	wind_indicator.size = viewport_size
+	wind_indicator.visible = false
+	wind_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wind_indicator.z_index = 10
+	add_child(wind_indicator)
+	
+	# Left wind arrow (shown when wind blows left)
+	var left_arrow_container = Control.new()
+	left_arrow_container.name = "LeftArrow"
+	left_arrow_container.size = Vector2(60, 100)
+	left_arrow_container.position = Vector2(5, viewport_size.y / 2 - 50)
+	left_arrow_container.visible = false
+	wind_indicator.add_child(left_arrow_container)
+	
+	var left_bg = ColorRect.new()
+	left_bg.size = Vector2(50, 80)
+	left_bg.position = Vector2(5, 10)
+	left_bg.color = Color(0.2, 0.5, 1.0, 0.4)
+	left_arrow_container.add_child(left_bg)
+	
+	var left_arrow = Label.new()
+	left_arrow.text = "◀◀"
+	left_arrow.add_theme_font_size_override("font_size", 32)
+	left_arrow.add_theme_color_override("font_color", Color(0.4, 0.7, 1.0))
+	left_arrow.position = Vector2(5, 25)
+	left_arrow.size = Vector2(50, 50)
+	left_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	left_arrow_container.add_child(left_arrow)
+	
+	# Right wind arrow (shown when wind blows right)  
+	var right_arrow_container = Control.new()
+	right_arrow_container.name = "RightArrow"
+	right_arrow_container.size = Vector2(60, 100)
+	right_arrow_container.position = Vector2(viewport_size.x - 65, viewport_size.y / 2 - 50)
+	right_arrow_container.visible = false
+	wind_indicator.add_child(right_arrow_container)
+	
+	var right_bg = ColorRect.new()
+	right_bg.size = Vector2(50, 80)
+	right_bg.position = Vector2(5, 10)
+	right_bg.color = Color(1.0, 0.5, 0.2, 0.4)
+	right_arrow_container.add_child(right_bg)
+	
+	var right_arrow = Label.new()
+	right_arrow.text = "▶▶"
+	right_arrow.add_theme_font_size_override("font_size", 32)
+	right_arrow.add_theme_color_override("font_color", Color(1.0, 0.6, 0.3))
+	right_arrow.position = Vector2(5, 25)
+	right_arrow.size = Vector2(50, 50)
+	right_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	right_arrow_container.add_child(right_arrow)
+	
+	# Vortex indicator (center screen warning)
+	vortex_indicator = Control.new()
+	vortex_indicator.name = "VortexIndicator"
+	vortex_indicator.size = Vector2(150, 50)
+	vortex_indicator.position = Vector2(viewport_size.x / 2 - 75, viewport_size.y - 120)
+	vortex_indicator.visible = false
+	vortex_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vortex_indicator.z_index = 10
+	add_child(vortex_indicator)
+	
+	var vortex_bg = ColorRect.new()
+	vortex_bg.size = Vector2(150, 50)
+	vortex_bg.color = Color(0.6, 0.2, 0.8, 0.5)
+	vortex_indicator.add_child(vortex_bg)
+	
+	var vortex_label = Label.new()
+	vortex_label.name = "VortexLabel"
+	vortex_label.text = "🌀 VORTEX"
+	vortex_label.add_theme_font_size_override("font_size", 20)
+	vortex_label.add_theme_color_override("font_color", Color(0.9, 0.5, 1.0))
+	vortex_label.position = Vector2(0, 10)
+	vortex_label.size = Vector2(150, 30)
+	vortex_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vortex_indicator.add_child(vortex_label)
 
 func create_danger_vignette() -> void:
 	danger_vignette = ColorRect.new()
@@ -213,6 +302,85 @@ func set_danger_level(level: float) -> void:
 func set_score_multiplier(multiplier: float) -> void:
 	score_multiplier = multiplier
 	# Could add visual feedback when 2x is active
+
+# ========== HAZARD INDICATORS ==========
+
+func show_wind_indicator(direction: int) -> void:
+	# direction: 1 = right, -1 = left, 0 = none
+	if direction == current_wind_direction:
+		return
+	
+	current_wind_direction = direction
+	
+	if not wind_indicator:
+		return
+	
+	if direction == 0:
+		# Hide wind indicator
+		wind_indicator.visible = false
+		return
+	
+	wind_indicator.visible = true
+	
+	var left_arrow = wind_indicator.get_node_or_null("LeftArrow")
+	var right_arrow = wind_indicator.get_node_or_null("RightArrow")
+	
+	if left_arrow:
+		left_arrow.visible = (direction < 0)
+		if direction < 0:
+			# Animate pulsing
+			animate_wind_arrow(left_arrow)
+	
+	if right_arrow:
+		right_arrow.visible = (direction > 0)
+		if direction > 0:
+			# Animate pulsing
+			animate_wind_arrow(right_arrow)
+
+func animate_wind_arrow(arrow_container: Control) -> void:
+	# Pulsing animation
+	var tween = get_tree().create_tween().set_loops()
+	tween.tween_property(arrow_container, "modulate:a", 0.5, 0.3)
+	tween.tween_property(arrow_container, "modulate:a", 1.0, 0.3)
+
+func show_vortex_indicator(vortex_type: int) -> void:
+	# vortex_type: 0 = SUCTION (purple), 1 = REPULSION (green), -1 = none
+	if not vortex_indicator:
+		return
+	
+	if vortex_type < 0:
+		vortex_indicator.visible = false
+		return
+	
+	vortex_indicator.visible = true
+	
+	var label = vortex_indicator.get_node_or_null("VortexLabel")
+	var bg = vortex_indicator.get_child(0) if vortex_indicator.get_child_count() > 0 else null
+	
+	if vortex_type == 0:  # SUCTION
+		if label:
+			label.text = "🌀 SUCTION"
+			label.add_theme_color_override("font_color", Color(0.9, 0.5, 1.0))
+		if bg:
+			bg.color = Color(0.6, 0.2, 0.8, 0.5)
+	else:  # REPULSION
+		if label:
+			label.text = "💫 REPULSION"
+			label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.6))
+		if bg:
+			bg.color = Color(0.2, 0.6, 0.3, 0.5)
+	
+	# Pulsing animation
+	var tween = get_tree().create_tween().set_loops()
+	tween.tween_property(vortex_indicator, "modulate:a", 0.6, 0.25)
+	tween.tween_property(vortex_indicator, "modulate:a", 1.0, 0.25)
+
+func hide_hazard_indicators() -> void:
+	current_wind_direction = 0
+	if wind_indicator:
+		wind_indicator.visible = false
+	if vortex_indicator:
+		vortex_indicator.visible = false
 
 # ========== POWER-UP INDICATORS ==========
 
@@ -845,3 +1013,4 @@ func reset() -> void:
 	if streak_indicator:
 		streak_indicator.visible = false
 	clear_power_up_indicators()
+	hide_hazard_indicators()

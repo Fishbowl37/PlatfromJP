@@ -115,11 +115,7 @@ func _physics_process(delta: float) -> void:
 	
 	move_and_slide()
 	
-	# Break floors when mega jumping through them
-	# Stop breaking after 650 meters (6500 pixels) to leave platforms for landing
-	var jump_distance = jump_start_y - global_position.y
-	if is_mega_jump_active and velocity.y < -300 and jump_distance < 6500:
-		check_mega_jump_floor_break()
+	# Mega jump no longer breaks platforms - better gameplay experience
 	
 	detect_current_floor()
 	

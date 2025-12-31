@@ -33,6 +33,9 @@ var combo_system: ComboSystem
 # Power-up manager
 var power_up_manager: PowerUpManager
 
+# Hazard manager (wind zones, vortexes)
+var hazard_manager: HazardManager
+
 # Zone tracking
 var current_zone: String = ""
 
@@ -85,6 +88,12 @@ func setup_game() -> void:
 	# Setup power-up manager
 	power_up_manager = PowerUpManager.new()
 	add_child(power_up_manager)
+	
+	# Setup hazard manager
+	hazard_manager = HazardManager.new()
+	hazard_manager.tower_width = tower_width
+	hazard_manager.tower_left_margin = tower_left_margin
+	add_child(hazard_manager)
 	
 	# Position walls
 	if left_wall:
@@ -155,6 +164,11 @@ func connect_signals() -> void:
 	if floor_generator:
 		floor_generator.power_up_spawned.connect(_on_power_up_spawned)
 	
+	# Hazard manager signals
+	if hazard_manager:
+		hazard_manager.wind_zone_spawned.connect(_on_wind_zone_spawned)
+		hazard_manager.vortex_zone_spawned.connect(_on_vortex_zone_spawned)
+	
 	# Game over screen signals
 	if game_over_screen:
 		game_over_screen.restart_requested.connect(_on_restart_requested)
@@ -179,6 +193,10 @@ func start_game() -> void:
 	if power_up_manager:
 		power_up_manager.initialize(player, game_camera, floor_generator)
 		power_up_manager.reset()
+	
+	# Initialize hazard manager
+	if hazard_manager:
+		hazard_manager.initialize(player, game_camera, floor_generator)
 	
 	# Reset camera
 	if game_camera:
@@ -269,6 +287,9 @@ func restart_game() -> void:
 	
 	if power_up_manager:
 		power_up_manager.reset()
+	
+	if hazard_manager:
+		hazard_manager.reset()
 	
 	current_zone = ""
 	start_game()
@@ -398,6 +419,56 @@ func _on_score_multiplier_changed(multiplier: float) -> void:
 func _on_mega_jump_changed(active: bool) -> void:
 	if player:
 		player.set_mega_jump_active(active)
+
+# ========== HAZARD CALLBACKS ==========
+
+func _on_wind_zone_spawned(zone: WindZone) -> void:
+	# Connect zone signals to update HUD when player enters/exits
+	zone.body_entered.connect(_on_player_entered_wind_zone.bind(zone))
+	zone.body_exited.connect(_on_player_exited_wind_zone.bind(zone))
+
+func _on_vortex_zone_spawned(zone: VortexZone) -> void:
+	# Connect zone signals to update HUD when player enters/exits
+	zone.body_entered.connect(_on_player_entered_vortex_zone.bind(zone))
+	zone.body_exited.connect(_on_player_exited_vortex_zone.bind(zone))
+
+func _on_player_entered_wind_zone(body: Node2D, zone: WindZone) -> void:
+	if body is Player and hud:
+		var direction = 1 if zone.wind_direction == WindZone.WindDirection.RIGHT else -1
+		hud.show_wind_indicator(direction)
+
+func _on_player_exited_wind_zone(body: Node2D, _zone: WindZone) -> void:
+	if body is Player and hud:
+		# Check if player is still in another wind zone
+		if hazard_manager:
+			var still_in_wind = false
+			for wz in hazard_manager.active_wind_zones:
+				if wz.player_in_zone:
+					still_in_wind = true
+					var dir = 1 if wz.wind_direction == WindZone.WindDirection.RIGHT else -1
+					hud.show_wind_indicator(dir)
+					break
+			if not still_in_wind:
+				hud.show_wind_indicator(0)
+
+func _on_player_entered_vortex_zone(body: Node2D, zone: VortexZone) -> void:
+	if body is Player and hud:
+		var vtype = 0 if zone.vortex_type == VortexZone.VortexType.SUCTION else 1
+		hud.show_vortex_indicator(vtype)
+
+func _on_player_exited_vortex_zone(body: Node2D, _zone: VortexZone) -> void:
+	if body is Player and hud:
+		# Check if player is still in another vortex zone
+		if hazard_manager:
+			var still_in_vortex = false
+			for vz in hazard_manager.active_vortex_zones:
+				if vz.player_in_zone:
+					still_in_vortex = true
+					var vtype = 0 if vz.vortex_type == VortexZone.VortexType.SUCTION else 1
+					hud.show_vortex_indicator(vtype)
+					break
+			if not still_in_vortex:
+				hud.show_vortex_indicator(-1)
 
 # ========== BACKGROUND THEMING ==========
 

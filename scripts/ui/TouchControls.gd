@@ -27,23 +27,25 @@ func setup_joystick() -> void:
 func setup_info_display() -> void:
 	var info_container = HBoxContainer.new()
 	info_container.name = "InfoContainer"
-	info_container.anchors_preset = Control.PRESET_CENTER_TOP
+	info_container.anchors_preset = Control.PRESET_CENTER_BOTTOM
 	info_container.anchor_left = 0.5
-	info_container.anchor_top = 0.0
+	info_container.anchor_top = 1.0
 	info_container.anchor_right = 0.5
-	info_container.anchor_bottom = 0.0
+	info_container.anchor_bottom = 1.0
 	info_container.offset_left = -100
-	info_container.offset_top = 70
+	info_container.offset_top = -50
 	info_container.offset_right = 100
-	info_container.offset_bottom = 90
+	info_container.offset_bottom = -20
 	info_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	info_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	info_container.add_theme_constant_override("separation", 20)
 	add_child(info_container)
 	
 	speed_label = Label.new()
-	speed_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0, 0.5))
-	speed_label.add_theme_font_size_override("font_size", 12)
+	speed_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0, 0.8))
+	speed_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	speed_label.add_theme_constant_override("outline_size", 3)
+	speed_label.add_theme_font_size_override("font_size", 18)
 	info_container.add_child(speed_label)
 	
 	phase_label = Label.new()
@@ -76,16 +78,16 @@ func get_current_direction() -> float:
 
 func set_speed(speed: float) -> void:
 	if speed_label:
-		speed_label.text = "SPEED: %d" % int(speed)
+		speed_label.text = "CHASE: %d" % int(speed)
 		var c: Color
 		if speed >= 80:
-			c = Color(1, 0.3, 0.3, 0.7)
+			c = Color(1, 0.3, 0.3, 1.0)  # Bright red - danger!
 		elif speed >= 50:
-			c = Color(1, 0.7, 0.3, 0.6)
+			c = Color(1, 0.6, 0.2, 1.0)  # Orange - getting fast
 		elif speed >= 30:
-			c = Color(1, 1, 0.5, 0.5)
+			c = Color(1, 1, 0.3, 0.9)    # Yellow - moderate
 		else:
-			c = Color(0.5, 0.8, 1.0, 0.5)
+			c = Color(0.5, 0.9, 1.0, 0.8) # Cyan - calm
 		speed_label.add_theme_color_override("font_color", c)
 
 func set_phase(phase_name: String) -> void:
