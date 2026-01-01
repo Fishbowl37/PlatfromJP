@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Google Sign-In Web Client ID -->
+    <!-- Get this from Google Cloud Console > APIs & Services > Credentials > Web client -->
+    <string name="default_web_client_id">437683005712-r3q3c0lgq1sm5itovn210m0k6dm6dvkd.apps.googleusercontent.com</string>
+</resources>
+
