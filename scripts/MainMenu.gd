@@ -27,6 +27,12 @@ var skin_manager: Node = null
 # Gem display
 var gem_label: Label = null
 
+# Google Sign-In button
+var google_signin_button: Button = null
+
+# Name change dialog
+var name_change_dialog: CanvasLayer = null
+
 func _ready() -> void:
 	_setup_panels()
 	_setup_character_animation()
@@ -119,6 +125,9 @@ func _setup_gem_display() -> void:
 	# Connect to skin manager's coins_changed signal to update display
 	if skin_manager:
 		skin_manager.coins_changed.connect(_on_coins_changed)
+	
+	# Setup Google Sign-In button
+	_setup_google_signin_button()
 
 func _update_gem_display() -> void:
 	if gem_label and skin_manager:
@@ -127,6 +136,292 @@ func _update_gem_display() -> void:
 
 func _on_coins_changed(_new_amount: int) -> void:
 	_update_gem_display()
+
+func _setup_google_signin_button() -> void:
+	# Check if we should show the button
+	if not has_node("/root/AuthManager"):
+		return
+	
+	var auth_manager = get_node("/root/AuthManager")
+	
+	# Don't show if already linked
+	if auth_manager.is_linked():
+		return
+	
+	# Create the button
+	var button = Button.new()
+	button.name = "GoogleSignInButton"
+	button.text = "🔗 Link Account  +500 💎"
+	button.custom_minimum_size = Vector2(200, 42)
+	
+	# Style the button
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.15, 0.12, 0.25, 0.95)
+	btn_style.border_color = Color(0.95, 0.7, 0.2, 0.8)
+	btn_style.set_border_width_all(2)
+	btn_style.set_corner_radius_all(12)
+	button.add_theme_stylebox_override("normal", btn_style)
+	
+	var btn_hover = StyleBoxFlat.new()
+	btn_hover.bg_color = Color(0.2, 0.15, 0.3, 0.95)
+	btn_hover.border_color = Color(1.0, 0.8, 0.3, 1.0)
+	btn_hover.set_border_width_all(2)
+	btn_hover.set_corner_radius_all(12)
+	button.add_theme_stylebox_override("hover", btn_hover)
+	
+	var btn_pressed = StyleBoxFlat.new()
+	btn_pressed.bg_color = Color(0.1, 0.08, 0.2, 0.95)
+	btn_pressed.border_color = Color(0.8, 0.6, 0.2, 0.8)
+	btn_pressed.set_border_width_all(2)
+	btn_pressed.set_corner_radius_all(12)
+	button.add_theme_stylebox_override("pressed", btn_pressed)
+	
+	button.add_theme_font_size_override("font_size", 14)
+	button.add_theme_color_override("font_color", Color(1, 0.95, 0.9))
+	button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+	
+	# Position below the bottom row buttons
+	button.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	button.position = Vector2(-100, -70)
+	
+	button.pressed.connect(_on_google_signin_pressed)
+	
+	add_child(button)
+	google_signin_button = button
+	
+	# Connect to auth signals
+	auth_manager.account_linked.connect(_on_account_linked)
+	auth_manager.link_reward_granted.connect(_on_link_reward_granted)
+	
+	# Animate entrance
+	button.modulate.a = 0
+	button.position.y += 30
+	var target_y = button.position.y - 30
+	var tween = create_tween()
+	tween.set_trans(Tween.TRANS_BACK)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_interval(0.6)
+	tween.tween_property(button, "position:y", target_y, 0.4)
+	tween.parallel().tween_property(button, "modulate:a", 1.0, 0.3)
+
+func _on_google_signin_pressed() -> void:
+	if not has_node("/root/AuthManager"):
+		return
+	
+	var auth_manager = get_node("/root/AuthManager")
+	
+	# Button press effect
+	_button_press_effect(google_signin_button)
+	
+	# Start Google Sign-In
+	print("MainMenu: User requested Google Sign-In")
+	auth_manager.link_with_google()
+
+func _on_account_linked(success: bool) -> void:
+	if success:
+		# Hide the button with animation
+		if google_signin_button:
+			var tween = create_tween()
+			tween.tween_property(google_signin_button, "modulate:a", 0.0, 0.3)
+			tween.tween_property(google_signin_button, "position:y", google_signin_button.position.y + 30, 0.3)
+			tween.tween_callback(func(): 
+				if google_signin_button:
+					google_signin_button.queue_free()
+					google_signin_button = null
+			)
+		
+		# Show name change dialog after a short delay
+		await get_tree().create_timer(0.5).timeout
+		_show_name_change_dialog()
+
+func _on_link_reward_granted(diamonds: int) -> void:
+	# Show reward popup
+	_show_reward_popup(diamonds)
+	# Update gem display
+	_update_gem_display()
+
+func _show_reward_popup(diamonds: int) -> void:
+	# Create floating "+500 💎" animation
+	var popup = Label.new()
+	popup.text = "+%d 💎" % diamonds
+	popup.add_theme_font_size_override("font_size", 28)
+	popup.add_theme_color_override("font_color", Color(0.3, 1.0, 0.95))
+	popup.add_theme_color_override("font_outline_color", Color(0.1, 0.3, 0.4))
+	popup.add_theme_constant_override("outline_size", 3)
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	# Position at center of screen
+	var vp = get_viewport().get_visible_rect().size
+	popup.position = Vector2(vp.x / 2 - 60, vp.y / 2 - 50)
+	popup.size = Vector2(120, 50)
+	
+	add_child(popup)
+	
+	# Animate: float up and fade out
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "position:y", popup.position.y - 80, 1.5).set_ease(Tween.EASE_OUT)
+	tween.tween_property(popup, "modulate:a", 0.0, 1.5).set_delay(0.5)
+	tween.chain().tween_callback(popup.queue_free)
+
+func _show_name_change_dialog() -> void:
+	if name_change_dialog:
+		return
+	
+	name_change_dialog = CanvasLayer.new()
+	name_change_dialog.layer = 100
+	add_child(name_change_dialog)
+	
+	var vp = get_viewport().get_visible_rect().size
+	
+	# Overlay
+	var overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.8)
+	overlay.size = vp
+	name_change_dialog.add_child(overlay)
+	
+	# Panel
+	var pw = 300.0
+	var ph = 220.0
+	var px = (vp.x - pw) / 2.0
+	var py = (vp.y - ph) / 2.0
+	
+	var panel = PanelContainer.new()
+	panel.position = Vector2(px, py)
+	panel.size = Vector2(pw, ph)
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.18)
+	style.border_color = Color(0.4, 0.7, 1.0)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(16)
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 20
+	style.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", style)
+	name_change_dialog.add_child(panel)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 15)
+	panel.add_child(vbox)
+	
+	# Title
+	var title = Label.new()
+	title.text = "🎉 Account Linked!"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(1, 0.95, 0.8))
+	vbox.add_child(title)
+	
+	# Subtitle
+	var subtitle = Label.new()
+	subtitle.text = "Choose your display name:"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 14)
+	subtitle.add_theme_color_override("font_color", Color(0.7, 0.65, 0.8))
+	vbox.add_child(subtitle)
+	
+	# Name input
+	var name_input = LineEdit.new()
+	name_input.name = "NameInput"
+	name_input.placeholder_text = "Enter name..."
+	name_input.max_length = 16
+	name_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_input.custom_minimum_size = Vector2(0, 40)
+	
+	# Get current name
+	if has_node("/root/AuthManager"):
+		name_input.text = get_node("/root/AuthManager").get_display_name()
+	
+	var input_style = StyleBoxFlat.new()
+	input_style.bg_color = Color(0.15, 0.12, 0.22)
+	input_style.border_color = Color(0.3, 0.25, 0.45)
+	input_style.set_border_width_all(2)
+	input_style.set_corner_radius_all(8)
+	input_style.content_margin_left = 10
+	input_style.content_margin_right = 10
+	name_input.add_theme_stylebox_override("normal", input_style)
+	name_input.add_theme_font_size_override("font_size", 16)
+	name_input.add_theme_color_override("font_color", Color(1, 1, 1))
+	name_input.add_theme_color_override("font_placeholder_color", Color(0.5, 0.45, 0.6))
+	vbox.add_child(name_input)
+	
+	# Buttons
+	var btn_hbox = HBoxContainer.new()
+	btn_hbox.add_theme_constant_override("separation", 15)
+	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_hbox)
+	
+	# Skip button
+	var skip_btn = Button.new()
+	skip_btn.text = "Keep Name"
+	skip_btn.custom_minimum_size = Vector2(100, 38)
+	skip_btn.add_theme_font_size_override("font_size", 14)
+	var skip_style = StyleBoxFlat.new()
+	skip_style.bg_color = Color(0.2, 0.18, 0.28)
+	skip_style.set_corner_radius_all(10)
+	skip_btn.add_theme_stylebox_override("normal", skip_style)
+	skip_btn.add_theme_color_override("font_color", Color(0.7, 0.65, 0.8))
+	skip_btn.pressed.connect(_on_name_dialog_skip)
+	btn_hbox.add_child(skip_btn)
+	
+	# Confirm button
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Save"
+	confirm_btn.custom_minimum_size = Vector2(100, 38)
+	confirm_btn.add_theme_font_size_override("font_size", 14)
+	var confirm_style = StyleBoxFlat.new()
+	confirm_style.bg_color = Color(0.3, 0.6, 0.4)
+	confirm_style.set_corner_radius_all(10)
+	confirm_btn.add_theme_stylebox_override("normal", confirm_style)
+	var confirm_hover = StyleBoxFlat.new()
+	confirm_hover.bg_color = Color(0.35, 0.7, 0.45)
+	confirm_hover.set_corner_radius_all(10)
+	confirm_btn.add_theme_stylebox_override("hover", confirm_hover)
+	confirm_btn.add_theme_color_override("font_color", Color(1, 1, 1))
+	confirm_btn.pressed.connect(_on_name_dialog_confirm.bind(name_input))
+	btn_hbox.add_child(confirm_btn)
+	
+	# Animate entrance
+	panel.modulate.a = 0
+	panel.scale = Vector2(0.8, 0.8)
+	panel.pivot_offset = Vector2(pw/2, ph/2)
+	
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_BACK)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.3)
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.4)
+	
+	# Focus the input
+	await get_tree().create_timer(0.1).timeout
+	name_input.grab_focus()
+
+func _on_name_dialog_skip() -> void:
+	_close_name_dialog()
+
+func _on_name_dialog_confirm(name_input: LineEdit) -> void:
+	var new_name = name_input.text.strip_edges()
+	
+	if new_name.length() >= 2 and has_node("/root/AuthManager"):
+		get_node("/root/AuthManager").set_display_name(new_name)
+		print("MainMenu: Display name changed to: " + new_name)
+	
+	_close_name_dialog()
+
+func _close_name_dialog() -> void:
+	if not name_change_dialog:
+		return
+	
+	var tween = create_tween()
+	tween.tween_property(name_change_dialog, "modulate:a", 0.0, 0.2)
+	tween.tween_callback(func():
+		if name_change_dialog:
+			name_change_dialog.queue_free()
+			name_change_dialog = null
+	)
 
 func _setup_remote_config() -> void:
 	# Connect to RemoteConfig signals if available

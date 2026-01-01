@@ -23,6 +23,8 @@ const AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts"
 signal auth_completed(success: bool)
 signal auth_error(error: String)
 signal display_name_changed(new_name: String)
+signal account_linked(success: bool)
+signal link_reward_granted(diamonds: int)
 
 # =============================================================================
 # STATE
@@ -46,8 +48,17 @@ var display_name: String = ""
 ## Whether user is authenticated
 var is_authenticated: bool = false
 
+## Whether user has linked a permanent account (Google, etc.)
+var is_account_linked: bool = false
+
+## Whether user has claimed the link reward
+var has_claimed_link_reward: bool = false
+
 ## Local persistence
 const AUTH_SAVE_PATH = "user://auth_data.cfg"
+
+## Reward for linking account
+const LINK_REWARD_DIAMONDS = 500
 
 # =============================================================================
 # LIFECYCLE
@@ -124,6 +135,116 @@ func get_auth_header() -> String:
 ## Check if user is authenticated
 func is_signed_in() -> bool:
 	return is_authenticated and user_id != ""
+
+## Check if user has linked a permanent account
+func is_linked() -> bool:
+	return is_account_linked
+
+## Check if user can link account (not already linked)
+func can_link_account() -> bool:
+	return is_authenticated and not is_account_linked
+
+## Check if user should see the link button
+func should_show_link_button() -> bool:
+	return is_authenticated and not is_account_linked
+
+## Link with Google Account
+## Uses Play Game Services plugin on Android, simulates on other platforms.
+func link_with_google() -> void:
+	if not is_authenticated:
+		push_warning("AuthManager: Cannot link - not authenticated")
+		account_linked.emit(false)
+		return
+	
+	if is_account_linked:
+		push_warning("AuthManager: Account already linked")
+		account_linked.emit(false)
+		return
+	
+	print("AuthManager: Starting Google Sign-In...")
+	
+	# Check if Play Game Services plugin is available (Android)
+	if Engine.has_singleton("GodotPlayGamesServices"):
+		var play_games = Engine.get_singleton("GodotPlayGamesServices")
+		# Connect signals if not already connected
+		if not play_games.is_connected("_on_sign_in_success", _on_play_games_success):
+			play_games.connect("_on_sign_in_success", _on_play_games_success)
+			play_games.connect("_on_sign_in_failed", _on_play_games_failed)
+		play_games.signIn()
+		print("AuthManager: Using Play Game Services")
+	else:
+		# Fallback for non-Android platforms (desktop/web testing)
+		print("AuthManager: Play Games not available - simulating sign-in")
+		_on_google_link_success()
+
+func _on_play_games_success(account_id: String) -> void:
+	print("AuthManager: Play Games sign-in success! Account: " + account_id)
+	_on_google_link_success()
+
+func _on_play_games_failed() -> void:
+	push_warning("AuthManager: Play Games sign-in failed")
+	account_linked.emit(false)
+
+## Call this when you get a Google ID token from a sign-in plugin
+func complete_google_link(google_id_token: String) -> void:
+	if google_id_token.is_empty():
+		account_linked.emit(false)
+		return
+	
+	# Link the Google credential to the anonymous account
+	var http = HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(_on_link_completed.bind(http))
+	
+	var url = "%s:signInWithIdp?key=%s" % [AUTH_URL, FIREBASE_API_KEY]
+	var body = JSON.stringify({
+		"requestUri": "http://localhost",
+		"postBody": "id_token=%s&providerId=google.com" % google_id_token,
+		"returnSecureToken": true,
+		"returnIdpCredential": true
+	})
+	var headers = ["Content-Type: application/json"]
+	
+	var error = http.request(url, headers, HTTPClient.METHOD_POST, body)
+	if error != OK:
+		push_warning("AuthManager: Failed to link Google account")
+		http.queue_free()
+		account_linked.emit(false)
+
+func _on_link_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, http: HTTPRequest) -> void:
+	http.queue_free()
+	
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		var body_text = body.get_string_from_utf8()
+		push_warning("AuthManager: Link failed: " + body_text)
+		account_linked.emit(false)
+		return
+	
+	_on_google_link_success()
+
+func _on_google_link_success() -> void:
+	is_account_linked = true
+	_save_auth_data()
+	
+	print("AuthManager: Account linked successfully!")
+	account_linked.emit(true)
+	
+	# Grant reward if not already claimed
+	if not has_claimed_link_reward:
+		_grant_link_reward()
+
+func _grant_link_reward() -> void:
+	has_claimed_link_reward = true
+	_save_auth_data()
+	
+	# Add diamonds via SkinManager
+	if has_node("/root/GameManager"):
+		var game_manager = get_node("/root/GameManager")
+		if game_manager.skin_manager:
+			game_manager.skin_manager.add_coins(LINK_REWARD_DIAMONDS)
+			game_manager.save_game_data()
+			print("AuthManager: Granted %d diamonds for linking account!" % LINK_REWARD_DIAMONDS)
+			link_reward_granted.emit(LINK_REWARD_DIAMONDS)
 
 # =============================================================================
 # FIREBASE AUTH HANDLERS
@@ -242,6 +363,8 @@ func _load_auth_data() -> void:
 		refresh_token = config.get_value("auth", "refresh_token", "")
 		display_name = config.get_value("auth", "display_name", "")
 		token_expires_at = config.get_value("auth", "token_expires_at", 0)
+		is_account_linked = config.get_value("auth", "is_account_linked", false)
+		has_claimed_link_reward = config.get_value("auth", "has_claimed_link_reward", false)
 
 func _save_auth_data() -> void:
 	var config = ConfigFile.new()
@@ -249,5 +372,7 @@ func _save_auth_data() -> void:
 	config.set_value("auth", "refresh_token", refresh_token)
 	config.set_value("auth", "display_name", display_name)
 	config.set_value("auth", "token_expires_at", token_expires_at)
+	config.set_value("auth", "is_account_linked", is_account_linked)
+	config.set_value("auth", "has_claimed_link_reward", has_claimed_link_reward)
 	config.save(AUTH_SAVE_PATH)
 
