@@ -15,7 +15,7 @@ const FIREBASE_API_KEY = "AIzaSyBtThVxcLHak1Axpb8V8hk86SQpW3MrPbc"
 
 ## Google Web Client ID (from Google Cloud Console > Credentials)
 ## IMPORTANT: Replace with YOUR Web Application Client ID
-const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
+const GOOGLE_WEB_CLIENT_ID = "437683005712-r3q3c0lgq1sm5itovn210m0k6dm6dvkd.apps.googleusercontent.com"
 
 ## Firebase Auth REST API endpoint
 const AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts"
