@@ -15,6 +15,11 @@ var base_position: Vector2
 var settings_panel: SettingsPanel
 var skins_panel: SkinsPanel
 var themes_panel: ThemesPanel
+var leaderboard_panel: LeaderboardPanel
+
+# Announcement popup
+var announcement_popup: AnnouncementPopup
+var pending_announcements: Array = []
 
 # Skin manager reference
 var skin_manager: Node = null
@@ -27,6 +32,7 @@ func _ready() -> void:
 	_setup_character_animation()
 	_setup_buttons()
 	_setup_gem_display()
+	_setup_remote_config()
 	_start_floating_animation()
 	_animate_entrance()
 
@@ -50,6 +56,17 @@ func _setup_panels() -> void:
 	themes_panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	themes_panel.theme_selected.connect(_on_theme_selected)
 	add_child(themes_panel)
+	
+	# Setup leaderboard panel
+	leaderboard_panel = LeaderboardPanel.new()
+	leaderboard_panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(leaderboard_panel)
+	
+	# Setup announcement popup
+	announcement_popup = AnnouncementPopup.new()
+	announcement_popup.process_mode = Node.PROCESS_MODE_ALWAYS
+	announcement_popup.closed.connect(_on_announcement_closed)
+	add_child(announcement_popup)
 	
 	# Setup skin manager
 	_setup_skin_manager()
@@ -110,6 +127,61 @@ func _update_gem_display() -> void:
 
 func _on_coins_changed(_new_amount: int) -> void:
 	_update_gem_display()
+
+func _setup_remote_config() -> void:
+	# Connect to RemoteConfig signals if available
+	if has_node("/root/RemoteConfig"):
+		var remote_config = get_node("/root/RemoteConfig")
+		remote_config.config_loaded.connect(_on_remote_config_loaded)
+		remote_config.announcement_received.connect(_on_announcement_received)
+		
+		# If already loaded, apply immediately
+		if remote_config.is_loaded:
+			_apply_feature_flags()
+	else:
+		# RemoteConfig not available, show all features
+		pass
+
+func _on_remote_config_loaded(_config: Dictionary) -> void:
+	_apply_feature_flags()
+
+func _apply_feature_flags() -> void:
+	if not has_node("/root/RemoteConfig"):
+		return
+	
+	var remote_config = get_node("/root/RemoteConfig")
+	
+	# Toggle features based on server config
+	if skins_button:
+		skins_button.visible = remote_config.is_feature_enabled("skins")
+	if themes_button:
+		themes_button.visible = remote_config.is_feature_enabled("themes")
+	if leaderboard_button:
+		leaderboard_button.visible = remote_config.is_feature_enabled("leaderboard")
+	if free_fall_button:
+		free_fall_button.visible = remote_config.is_feature_enabled("free_fall_mode")
+
+func _on_announcement_received(announcement: Dictionary) -> void:
+	# Queue announcement to show
+	pending_announcements.append(announcement)
+	_show_next_announcement()
+
+func _show_next_announcement() -> void:
+	if pending_announcements.is_empty():
+		return
+	
+	if announcement_popup and not announcement_popup.is_open:
+		var next_announcement = pending_announcements.pop_front()
+		announcement_popup.show_announcement(next_announcement)
+
+func _on_announcement_closed(announcement_id: String) -> void:
+	# Mark as shown in RemoteConfig
+	if has_node("/root/RemoteConfig") and announcement_id != "":
+		var remote_config = get_node("/root/RemoteConfig")
+		remote_config.mark_announcement_shown(announcement_id)
+	
+	# Show next announcement if any
+	_show_next_announcement()
 
 func _update_character_skin() -> void:
 	if character_sprite and skin_manager:
@@ -278,7 +350,8 @@ func _on_themes_pressed() -> void:
 
 func _on_leaderboard_pressed() -> void:
 	_button_press_effect(leaderboard_button)
-	_show_coming_soon("Leaderboard")
+	if leaderboard_panel:
+		leaderboard_panel.open_panel()
 
 func _button_press_effect(button: Button) -> void:
 	var tween = create_tween()

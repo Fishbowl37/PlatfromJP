@@ -50,9 +50,12 @@ func start_game() -> void:
 func end_game() -> void:
 	is_game_active = false
 	
+	var is_new_best = false
+	
 	# Update best score
 	if current_score > best_score:
 		best_score = current_score
+		is_new_best = true
 		save_game_data()
 	
 	# Update best distance
@@ -60,7 +63,25 @@ func end_game() -> void:
 		best_distance = current_distance
 		save_game_data()
 	
+	# Submit score to leaderboard
+	_submit_to_leaderboard()
+	
+	# Trigger ads manager game over logic
+	if has_node("/root/AdsManager"):
+		get_node("/root/AdsManager").on_game_over()
+	
 	game_over.emit(current_score, current_distance)
+
+func _submit_to_leaderboard() -> void:
+	if not has_node("/root/LeaderboardManager"):
+		return
+	
+	var leaderboard = get_node("/root/LeaderboardManager")
+	var skin_id = "default"
+	if skin_manager:
+		skin_id = skin_manager.get_equipped_skin()
+	
+	leaderboard.submit_score(current_score, current_distance, skin_id)
 
 func pause_game() -> void:
 	is_paused = true
@@ -82,8 +103,21 @@ func update_distance(distance: float) -> void:
 
 # Add score (called from Main.gd via ComboSystem)
 func add_score(points: int) -> void:
-	current_score += points
+	# Apply score multiplier from RemoteConfig if available
+	var multiplier = _get_score_multiplier()
+	var adjusted_points = int(points * multiplier)
+	current_score += adjusted_points
 	score_changed.emit(current_score)
+
+func _get_score_multiplier() -> float:
+	if has_node("/root/RemoteConfig"):
+		return get_node("/root/RemoteConfig").get_score_multiplier()
+	return 1.0
+
+func _get_coin_multiplier() -> float:
+	if has_node("/root/RemoteConfig"):
+		return get_node("/root/RemoteConfig").get_coin_multiplier()
+	return 1.0
 
 func set_danger_level(level: float) -> void:
 	danger_level = clamp(level, 0.0, 1.0)

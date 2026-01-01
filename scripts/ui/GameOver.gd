@@ -17,6 +17,10 @@ var final_score: int = 0
 var final_distance: float = 0.0
 var is_new_best: bool = false
 
+# Dynamic UI elements
+var rank_label: Label = null
+var leaderboard_manager: Node = null
+
 func _ready() -> void:
 	visible = false
 	
@@ -24,6 +28,12 @@ func _ready() -> void:
 		restart_button.pressed.connect(_on_restart_pressed)
 	if menu_button:
 		menu_button.pressed.connect(_on_menu_pressed)
+	
+	# Connect to leaderboard manager
+	await get_tree().process_frame
+	if has_node("/root/LeaderboardManager"):
+		leaderboard_manager = get_node("/root/LeaderboardManager")
+		leaderboard_manager.score_submitted.connect(_on_score_submitted)
 
 func format_number(num: int) -> String:
 	var str_num = str(num)
@@ -59,6 +69,9 @@ func show_game_over(score: int, distance_reached: float, best_score: int, distan
 			best_label.text = "★ BEST: %s ★" % format_number(best_score)
 			best_label.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
 	
+	# Create rank label if it doesn't exist
+	_setup_rank_label()
+	
 	# Show with animation
 	visible = true
 	
@@ -92,6 +105,54 @@ func show_game_over(score: int, distance_reached: float, best_score: int, distan
 		shake_tween.tween_property(title_label, "rotation", 0.05, 0.1)
 		shake_tween.tween_property(title_label, "rotation", -0.05, 0.1)
 		shake_tween.tween_property(title_label, "rotation", 0.0, 0.1)
+
+func _setup_rank_label() -> void:
+	# Find or create rank label after best_label
+	var vbox = panel.get_node_or_null("MarginContainer/VBoxContainer")
+	if not vbox:
+		return
+	
+	# Remove existing rank label if any
+	if rank_label and is_instance_valid(rank_label):
+		rank_label.queue_free()
+		rank_label = null
+	
+	# Create new rank label
+	rank_label = Label.new()
+	rank_label.name = "RankLabel"
+	rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rank_label.add_theme_font_size_override("font_size", 16)
+	rank_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	rank_label.text = "🏆 Submitting score..."
+	
+	# Find the best_label index and insert after it
+	var best_label_idx = best_label.get_index() if best_label else -1
+	if best_label_idx >= 0:
+		vbox.add_child(rank_label)
+		vbox.move_child(rank_label, best_label_idx + 1)
+	else:
+		vbox.add_child(rank_label)
+
+func _on_score_submitted(success: bool, rank: int) -> void:
+	if not rank_label or not is_instance_valid(rank_label):
+		return
+	
+	if success and rank > 0:
+		if rank <= 3:
+			var medal = "🥇" if rank == 1 else ("🥈" if rank == 2 else "🥉")
+			rank_label.text = "%s RANK #%d" % [medal, rank]
+			rank_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+		elif rank <= 10:
+			rank_label.text = "🏆 RANK #%d - TOP 10!" % rank
+			rank_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		else:
+			rank_label.text = "🏆 RANK #%d" % rank
+			rank_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	elif success:
+		rank_label.text = "🏆 Score saved!"
+		rank_label.add_theme_color_override("font_color", Color(0.5, 0.7, 0.6))
+	else:
+		rank_label.text = ""  # Hide on failure
 
 func hide_game_over() -> void:
 	if panel:

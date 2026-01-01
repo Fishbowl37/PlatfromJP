@@ -19,6 +19,11 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameManager="*res://scripts/GameManager.gd"
+RemoteConfig="*res://scripts/RemoteConfig.gd"
+AdsManager="*res://scripts/AdsManager.gd"
+AuthManager="*res://scripts/AuthManager.gd"
+LeaderboardManager="*res://scripts/LeaderboardManager.gd"
+CloudSaveManager="*res://scripts/CloudSaveManager.gd"
 
 [display]
 
