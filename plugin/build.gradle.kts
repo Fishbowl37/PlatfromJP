@@ -36,7 +36,7 @@ android {
 
 dependencies {
     // Godot library - will be provided at runtime
-    compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("godot-lib*.aar"))))
+    compileOnly(files("libs/godot-lib.aar"))
     
     // Google Identity / Credential Manager
     implementation("androidx.credentials:credentials:1.3.0")

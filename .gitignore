@@ -34,3 +34,10 @@ export_presets.cfg.bak
 
 android/build/
 
+# Plugin build files (large files that shouldn't be in git)
+plugin/libs/godot-lib.aar
+plugin/build/
+plugin/.gradle/
+plugin/.idea/
+android/plugins/*.aar
+

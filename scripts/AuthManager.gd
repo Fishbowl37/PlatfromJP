@@ -13,6 +13,10 @@ extends Node
 ## Your Firebase Web API Key (from Firebase Console > Project Settings > General)
 const FIREBASE_API_KEY = "AIzaSyBtThVxcLHak1Axpb8V8hk86SQpW3MrPbc"
 
+## Google Web Client ID (from Google Cloud Console > Credentials)
+## IMPORTANT: Replace with YOUR Web Application Client ID
+const GOOGLE_WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
+
 ## Firebase Auth REST API endpoint
 const AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts"
 
@@ -60,12 +64,17 @@ const AUTH_SAVE_PATH = "user://auth_data.cfg"
 ## Reward for linking account
 const LINK_REWARD_DIAMONDS = 500
 
+## Google Sign-In plugin reference
+var _google_sign_in = null
+var _google_sign_in_initialized = false
+
 # =============================================================================
 # LIFECYCLE
 # =============================================================================
 
 func _ready() -> void:
 	_load_auth_data()
+	_initialize_google_sign_in()
 	
 	# If we have saved credentials, try to refresh
 	if refresh_token != "":
@@ -73,6 +82,27 @@ func _ready() -> void:
 	else:
 		# First time user - sign in anonymously
 		sign_in_anonymous()
+
+## Initialize Google Sign-In plugin (Android only)
+func _initialize_google_sign_in() -> void:
+	if Engine.has_singleton("GodotGoogleSignIn"):
+		_google_sign_in = Engine.get_singleton("GodotGoogleSignIn")
+		
+		# Connect plugin signals
+		if _google_sign_in.sign_in_success.connect(_on_plugin_sign_in_success) != OK:
+			push_error("Failed to connect Google Sign-In success signal")
+		if _google_sign_in.sign_in_failed.connect(_on_plugin_sign_in_failed) != OK:
+			push_error("Failed to connect Google Sign-In failed signal")
+		
+		# Initialize with Web Client ID
+		if GOOGLE_WEB_CLIENT_ID != "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com":
+			_google_sign_in.initialize(GOOGLE_WEB_CLIENT_ID)
+			_google_sign_in_initialized = _google_sign_in.isInitialized()
+			print("AuthManager: Google Sign-In plugin initialized")
+		else:
+			push_warning("AuthManager: GOOGLE_WEB_CLIENT_ID not configured! Please update AuthManager.gd")
+	else:
+		print("AuthManager: Google Sign-In plugin not available (only on Android)")
 
 # =============================================================================
 # PUBLIC API
@@ -163,47 +193,40 @@ func link_with_google() -> void:
 	
 	print("AuthManager: Starting Google Sign-In...")
 	
-	# Check if GodotGoogleSignIn plugin is available (Android only)
-	if Engine.has_singleton("GodotGoogleSignIn"):
-		var google_sign_in = Engine.get_singleton("GodotGoogleSignIn")
-		
-		# Connect signals
-		if not google_sign_in.is_connected("sign_in_success", _on_google_sign_in_success):
-			google_sign_in.connect("sign_in_success", _on_google_sign_in_success)
-		if not google_sign_in.is_connected("sign_in_failed", _on_google_sign_in_failed):
-			google_sign_in.connect("sign_in_failed", _on_google_sign_in_failed)
-		
+	# Check if plugin is initialized
+	if _google_sign_in and _google_sign_in_initialized:
 		# Start sign-in process
-		google_sign_in.signIn()
+		_google_sign_in.signIn()
 		print("AuthManager: Using GodotGoogleSignIn plugin")
 	else:
 		# Fallback for non-Android platforms (desktop/web testing)
 		print("AuthManager: GodotGoogleSignIn not available (only on Android) - simulating sign-in")
 		_on_google_link_success()
 
-func _on_google_sign_in_success(id_token: String, user_info: Dictionary) -> void:
+## Called by the plugin when sign-in succeeds
+func _on_plugin_sign_in_success(id_token: String, email: String, display_name_from_google: String) -> void:
 	print("AuthManager: Google Sign-In success!")
-	print("AuthManager: User info: ", user_info)
+	print("AuthManager: Email: ", email)
+	print("AuthManager: Display Name: ", display_name_from_google)
 	
-	# If we got an ID token, we could link it with Firebase
-	if id_token and not id_token.is_empty():
-		# Optional: Link with Firebase using the ID token
-		# complete_google_link(id_token)
-		pass
-	
-	# Update display name from Google account if available
-	if user_info.has("displayName") and user_info["displayName"] != "":
-		display_name = user_info["displayName"]
+	# Update display name from Google account
+	if display_name_from_google != "":
+		display_name = display_name_from_google
 		_save_auth_data()
-	elif user_info.has("email"):
+	elif email != "":
 		# Use email prefix as name
-		var email = user_info["email"]
 		display_name = email.split("@")[0]
 		_save_auth_data()
 	
-	_on_google_link_success()
+	# Optional: Link with Firebase using the ID token
+	if id_token and not id_token.is_empty():
+		complete_google_link(id_token)
+	else:
+		# Just mark as linked without Firebase integration
+		_on_google_link_success()
 
-func _on_google_sign_in_failed(error: String) -> void:
+## Called by the plugin when sign-in fails
+func _on_plugin_sign_in_failed(error: String) -> void:
 	push_warning("AuthManager: Google Sign-In failed: " + error)
 	account_linked.emit(false)
 
