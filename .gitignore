@@ -29,4 +29,8 @@ export_presets.cfg.bak
 *.x86_64
 *.pck
 *.zip
+*.apk
+*.aab
+
+android/build/
 
