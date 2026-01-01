@@ -34,6 +34,10 @@ window/size/window_height_override=854
 window/stretch/mode="canvas_items"
 window/handheld/orientation=1
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/GodotGoogleSignIn/plugin.cfg")
+
 [input]
 
 move_left={

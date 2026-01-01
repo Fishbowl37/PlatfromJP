@@ -149,7 +149,7 @@ func should_show_link_button() -> bool:
 	return is_authenticated and not is_account_linked
 
 ## Link with Google Account
-## Uses Play Game Services plugin on Android, simulates on other platforms.
+## Uses GodotGoogleSignIn plugin on Android, simulates on other platforms.
 func link_with_google() -> void:
 	if not is_authenticated:
 		push_warning("AuthManager: Cannot link - not authenticated")
@@ -163,26 +163,48 @@ func link_with_google() -> void:
 	
 	print("AuthManager: Starting Google Sign-In...")
 	
-	# Check if Play Game Services plugin is available (Android)
-	if Engine.has_singleton("GodotPlayGamesServices"):
-		var play_games = Engine.get_singleton("GodotPlayGamesServices")
-		# Connect signals if not already connected
-		if not play_games.is_connected("_on_sign_in_success", _on_play_games_success):
-			play_games.connect("_on_sign_in_success", _on_play_games_success)
-			play_games.connect("_on_sign_in_failed", _on_play_games_failed)
-		play_games.signIn()
-		print("AuthManager: Using Play Game Services")
+	# Check if GodotGoogleSignIn plugin is available (Android only)
+	if Engine.has_singleton("GodotGoogleSignIn"):
+		var google_sign_in = Engine.get_singleton("GodotGoogleSignIn")
+		
+		# Connect signals
+		if not google_sign_in.is_connected("sign_in_success", _on_google_sign_in_success):
+			google_sign_in.connect("sign_in_success", _on_google_sign_in_success)
+		if not google_sign_in.is_connected("sign_in_failed", _on_google_sign_in_failed):
+			google_sign_in.connect("sign_in_failed", _on_google_sign_in_failed)
+		
+		# Start sign-in process
+		google_sign_in.signIn()
+		print("AuthManager: Using GodotGoogleSignIn plugin")
 	else:
 		# Fallback for non-Android platforms (desktop/web testing)
-		print("AuthManager: Play Games not available - simulating sign-in")
+		print("AuthManager: GodotGoogleSignIn not available (only on Android) - simulating sign-in")
 		_on_google_link_success()
 
-func _on_play_games_success(account_id: String) -> void:
-	print("AuthManager: Play Games sign-in success! Account: " + account_id)
+func _on_google_sign_in_success(id_token: String, user_info: Dictionary) -> void:
+	print("AuthManager: Google Sign-In success!")
+	print("AuthManager: User info: ", user_info)
+	
+	# If we got an ID token, we could link it with Firebase
+	if id_token and not id_token.is_empty():
+		# Optional: Link with Firebase using the ID token
+		# complete_google_link(id_token)
+		pass
+	
+	# Update display name from Google account if available
+	if user_info.has("displayName") and user_info["displayName"] != "":
+		display_name = user_info["displayName"]
+		_save_auth_data()
+	elif user_info.has("email"):
+		# Use email prefix as name
+		var email = user_info["email"]
+		display_name = email.split("@")[0]
+		_save_auth_data()
+	
 	_on_google_link_success()
 
-func _on_play_games_failed() -> void:
-	push_warning("AuthManager: Play Games sign-in failed")
+func _on_google_sign_in_failed(error: String) -> void:
+	push_warning("AuthManager: Google Sign-In failed: " + error)
 	account_linked.emit(false)
 
 ## Call this when you get a Google ID token from a sign-in plugin
