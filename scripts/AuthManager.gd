@@ -85,24 +85,38 @@ func _ready() -> void:
 
 ## Initialize Google Sign-In plugin (Android only)
 func _initialize_google_sign_in() -> void:
+	print("AuthManager: Checking for Google Sign-In plugin...")
+	print("AuthManager: Platform: ", OS.get_name())
+	
 	if Engine.has_singleton("GodotGoogleSignIn"):
+		print("AuthManager: ✓ GodotGoogleSignIn singleton found!")
 		_google_sign_in = Engine.get_singleton("GodotGoogleSignIn")
 		
 		# Connect plugin signals
 		if _google_sign_in.sign_in_success.connect(_on_plugin_sign_in_success) != OK:
-			push_error("Failed to connect Google Sign-In success signal")
+			push_error("AuthManager: ✗ Failed to connect Google Sign-In success signal")
+		else:
+			print("AuthManager: ✓ Connected sign_in_success signal")
+			
 		if _google_sign_in.sign_in_failed.connect(_on_plugin_sign_in_failed) != OK:
-			push_error("Failed to connect Google Sign-In failed signal")
+			push_error("AuthManager: ✗ Failed to connect Google Sign-In failed signal")
+		else:
+			print("AuthManager: ✓ Connected sign_in_failed signal")
 		
 		# Initialize with Web Client ID
 		if GOOGLE_WEB_CLIENT_ID != "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com":
+			print("AuthManager: Initializing with Web Client ID: ", GOOGLE_WEB_CLIENT_ID)
 			_google_sign_in.initialize(GOOGLE_WEB_CLIENT_ID)
 			_google_sign_in_initialized = _google_sign_in.isInitialized()
-			print("AuthManager: Google Sign-In plugin initialized")
+			
+			if _google_sign_in_initialized:
+				print("AuthManager: ✓ Google Sign-In plugin initialized successfully!")
+			else:
+				push_error("AuthManager: ✗ Google Sign-In plugin failed to initialize!")
 		else:
-			push_warning("AuthManager: GOOGLE_WEB_CLIENT_ID not configured! Please update AuthManager.gd")
+			push_warning("AuthManager: ✗ GOOGLE_WEB_CLIENT_ID not configured! Please update AuthManager.gd")
 	else:
-		print("AuthManager: Google Sign-In plugin not available (only on Android)")
+		print("AuthManager: ✗ Google Sign-In plugin not available")
 
 # =============================================================================
 # PUBLIC API
@@ -192,16 +206,27 @@ func link_with_google() -> void:
 		return
 	
 	print("AuthManager: Starting Google Sign-In...")
+	print("AuthManager: Plugin object: ", _google_sign_in)
+	print("AuthManager: Plugin initialized: ", _google_sign_in_initialized)
 	
 	# Check if plugin is initialized
 	if _google_sign_in and _google_sign_in_initialized:
+		print("AuthManager: ✓ Calling plugin.signIn()...")
 		# Start sign-in process
 		_google_sign_in.signIn()
-		print("AuthManager: Using GodotGoogleSignIn plugin")
+		print("AuthManager: ✓ Using GodotGoogleSignIn plugin")
 	else:
-		# Fallback for non-Android platforms (desktop/web testing)
-		print("AuthManager: GodotGoogleSignIn not available (only on Android) - simulating sign-in")
-		_on_google_link_success()
+		# Plugin not available - show error
+		print("AuthManager: ✗ GodotGoogleSignIn not available!")
+		if not _google_sign_in:
+			print("AuthManager:   Reason: Plugin singleton not found")
+			push_error("GodotGoogleSignIn plugin not found. Make sure it's enabled in Project Settings → Plugins and in Export settings.")
+		elif not _google_sign_in_initialized:
+			print("AuthManager:   Reason: Plugin not initialized")
+			push_error("GodotGoogleSignIn plugin failed to initialize. Check the Web Client ID.")
+		
+		# Emit failure signal
+		account_linked.emit(false)
 
 ## Called by the plugin when sign-in succeeds
 func _on_plugin_sign_in_success(id_token: String, email: String, display_name_from_google: String) -> void:

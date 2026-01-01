@@ -3,8 +3,3 @@
 name="GodotGoogleSignIn"
 binary_type="local"
 binary="GodotGoogleSignIn.aar"
-
-[dependencies]
-
-local=["androidx.credentials:credentials:1.2.2","androidx.credentials:credentials-play-services-auth:1.2.2","com.google.android.libraries.identity.googleid:googleid:1.1.0"]
-
