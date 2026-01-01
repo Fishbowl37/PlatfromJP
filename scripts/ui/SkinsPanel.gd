@@ -6,14 +6,37 @@ signal closed
 var is_open: bool = false
 var skin_buttons: Dictionary = {}
 var selected_skin: String = ""
-var preview_container: Control = null
+var preview_container: SubViewportContainer = null
+var preview_viewport: SubViewport = null
 var preview_sprite: AnimatedSprite2D = null
 var skin_manager: Node = null
+
+# Preview area dimensions - used for scaling sprites to fit
+const PREVIEW_WIDTH: float = 290.0
+const PREVIEW_HEIGHT: float = 120.0
+const PREVIEW_TARGET_HEIGHT: float = 90.0  # Target sprite height within preview
+
+# Animation cycling
+const PREVIEW_ANIMATIONS: Array[String] = ["idle", "run", "jump"]
+const ANIMATION_DISPLAY_TIME: float = 1.5  # Seconds to show each animation
+var current_animation_index: int = 0
+var animation_timer: float = 0.0
 
 func _ready() -> void:
 	layer = 100
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
+
+func _process(delta: float) -> void:
+	if not is_open or not preview_sprite:
+		return
+	
+	# Cycle through animations
+	animation_timer += delta
+	if animation_timer >= ANIMATION_DISPLAY_TIME:
+		animation_timer = 0.0
+		current_animation_index = (current_animation_index + 1) % PREVIEW_ANIMATIONS.size()
+		_play_current_animation()
 
 func _input(event: InputEvent) -> void:
 	if is_open and event.is_action_pressed("ui_cancel"):
@@ -104,7 +127,8 @@ func open_panel() -> void:
 	
 	# === PREVIEW AREA ===
 	var preview_y = py + 50
-	var preview_h = 120
+	var preview_h = int(PREVIEW_HEIGHT)
+	var preview_w = int(pw - 50)
 	
 	# Preview background with subtle border
 	var preview_border = ColorRect.new()
@@ -116,28 +140,35 @@ func open_panel() -> void:
 	var preview_bg = ColorRect.new()
 	preview_bg.color = Color(0.06, 0.04, 0.12)
 	preview_bg.position = Vector2(px + 25, preview_y)
-	preview_bg.size = Vector2(pw - 50, preview_h)
+	preview_bg.size = Vector2(preview_w, preview_h)
 	add_child(preview_bg)
 	
-	# Create a container for the preview to clip content
-	preview_container = Control.new()
+	# Use SubViewportContainer + SubViewport for proper 2D clipping
+	preview_container = SubViewportContainer.new()
 	preview_container.position = Vector2(px + 25, preview_y)
-	preview_container.size = Vector2(pw - 50, preview_h)
-	preview_container.clip_contents = true
+	preview_container.size = Vector2(preview_w, preview_h)
+	preview_container.stretch = true
 	add_child(preview_container)
 	
-	# Character preview sprite - positioned relative to container
+	preview_viewport = SubViewport.new()
+	preview_viewport.size = Vector2i(preview_w, preview_h)
+	preview_viewport.transparent_bg = true
+	preview_viewport.handle_input_locally = false
+	preview_viewport.gui_disable_input = true
+	preview_container.add_child(preview_viewport)
+	
+	# Character preview sprite - centered in viewport
 	preview_sprite = AnimatedSprite2D.new()
-	# Center in container: container is (pw-50) wide, preview_h tall
-	# Position relative to container's top-left
-	preview_sprite.position = Vector2((pw - 50) / 2, preview_h / 2 + 20)
-	preview_sprite.scale = Vector2(1.8, 1.8)
+	preview_sprite.position = Vector2(preview_w / 2.0, preview_h / 2.0 + 10)
 	preview_sprite.centered = true
 	var frames = load("res://assets/sprites/player/player_frames.tres")
 	if frames:
 		preview_sprite.sprite_frames = frames
-		preview_sprite.play("idle")
-	preview_container.add_child(preview_sprite)
+		# Calculate scale to fit sprite within preview area
+		_update_preview_scale(frames)
+		# Start animation cycle
+		_reset_animation_cycle()
+	preview_viewport.add_child(preview_sprite)
 	
 	# === SKIN NAME LABEL ===
 	var name_label = Label.new()
@@ -211,6 +242,52 @@ func _get_skins() -> Dictionary:
 	if skin_manager and skin_manager.has_method("get_all_skins"):
 		return skin_manager.get_all_skins()
 	return {"default": {"name": "Classic", "price": 0, "icon": "🧍", "sprite_modulate": Color(1, 1, 1)}}
+
+func _update_preview_scale(sprite_frames: SpriteFrames) -> void:
+	if not preview_sprite or not sprite_frames:
+		return
+	
+	# Get the first frame of idle animation to determine sprite size
+	var frame_texture: Texture2D = null
+	if sprite_frames.has_animation("idle") and sprite_frames.get_frame_count("idle") > 0:
+		frame_texture = sprite_frames.get_frame_texture("idle", 0)
+	
+	if not frame_texture:
+		preview_sprite.scale = Vector2(0.7, 0.7)
+		return
+	
+	var sprite_size = frame_texture.get_size()
+	
+	# Calculate scale to fit sprite within target height while maintaining aspect ratio
+	var scale_factor = PREVIEW_TARGET_HEIGHT / sprite_size.y
+	
+	# Also ensure it doesn't exceed width
+	var max_width_scale = (PREVIEW_WIDTH - 40) / sprite_size.x
+	scale_factor = min(scale_factor, max_width_scale)
+	
+	# Clamp scale to reasonable bounds
+	scale_factor = clamp(scale_factor, 0.3, 1.5)
+	
+	preview_sprite.scale = Vector2(scale_factor, scale_factor)
+
+func _play_current_animation() -> void:
+	if not preview_sprite or not preview_sprite.sprite_frames:
+		return
+	
+	var anim_name = PREVIEW_ANIMATIONS[current_animation_index]
+	
+	# Check if this animation exists in the sprite frames
+	if preview_sprite.sprite_frames.has_animation(anim_name):
+		preview_sprite.play(anim_name)
+	else:
+		# Fallback to idle if animation doesn't exist
+		if preview_sprite.sprite_frames.has_animation("idle"):
+			preview_sprite.play("idle")
+
+func _reset_animation_cycle() -> void:
+	current_animation_index = 0
+	animation_timer = 0.0
+	_play_current_animation()
 
 func _create_skin_button(skin_id: String, skin_data: Dictionary, pos: Vector2, size: int) -> Control:
 	var container = Control.new()
@@ -328,17 +405,20 @@ func _update_selection() -> void:
 		
 		# Load custom sprite frames if skin has them
 		var sprite_frames_path = skin_data.get("sprite_frames_path", "")
+		var frames_to_use: SpriteFrames = null
+		
 		if sprite_frames_path != "":
-			var custom_frames = load(sprite_frames_path)
-			if custom_frames:
-				preview_sprite.sprite_frames = custom_frames
-				preview_sprite.play("idle")
+			frames_to_use = load(sprite_frames_path)
 		else:
 			# Load default sprite frames
-			var default_frames = load("res://assets/sprites/player/player_frames.tres")
-			if default_frames:
-				preview_sprite.sprite_frames = default_frames
-				preview_sprite.play("idle")
+			frames_to_use = load("res://assets/sprites/player/player_frames.tres")
+		
+		if frames_to_use:
+			preview_sprite.sprite_frames = frames_to_use
+			# Update scale to fit the new sprite properly
+			_update_preview_scale(frames_to_use)
+			# Reset and start animation cycle from idle
+			_reset_animation_cycle()
 	
 	# Update name label
 	var name_label = get_node_or_null("SkinNameLabel")
@@ -391,6 +471,7 @@ func close_panel() -> void:
 	is_open = false
 	visible = false
 	preview_sprite = null
+	preview_viewport = null
 	preview_container = null
 	
 	for child in get_children():

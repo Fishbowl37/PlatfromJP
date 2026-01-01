@@ -75,6 +75,11 @@ var original_player_scale: Vector2 = Vector2.ONE
 var is_slowmo: bool = false
 var slowmo_timer: float = 0.0
 
+# Trap effects
+var is_slowed_by_trap: bool = false
+var slowdown_trap_timer: float = 0.0
+var original_player_speed: float = 0.0
+
 # Difficulty tracking
 var difficulty_level: int = 0
 var last_pattern_type: int = 0
@@ -314,27 +319,83 @@ func _style_coin(coin: Area2D, coin_type: int) -> void:
 	
 	coin.set_meta("coin_type", coin_type)
 	
+	# Kill existing aura tween if any
+	if coin.has_meta("aura_tween"):
+		var old_tween = coin.get_meta("aura_tween") as Tween
+		if old_tween and old_tween.is_valid():
+			old_tween.kill()
+		coin.remove_meta("aura_tween")
+	
+	# Remove existing aura if any
+	var existing_aura = coin.get_node_or_null("Aura")
+	if existing_aura:
+		existing_aura.queue_free()
+	
 	match coin_type:
-		0:  # Normal time coin (cyan)
-			outer.color = Color(0.2, 0.9, 1.0)
-			inner.color = Color(0.5, 1.0, 1.0)
+		0:  # Bronze time coin - 1.5 sec (common)
+			outer.color = Color(0.8, 0.5, 0.2)  # Bronze
+			inner.color = Color(1.0, 0.7, 0.4)
 			icon.text = "+"
 			icon.add_theme_color_override("font_color", Color(1, 1, 1))
-		1:  # Shrink power-up (pink)
+		1:  # Silver time coin - 2.0 sec (rare)
+			outer.color = Color(0.7, 0.75, 0.8)  # Silver
+			inner.color = Color(0.9, 0.92, 0.95)
+			icon.text = "++"
+			icon.position = Vector2(-9, -8)
+			icon.add_theme_color_override("font_color", Color(0.3, 0.35, 0.4))
+		2:  # Gold time coin - 2.5 sec (very rare)
+			outer.color = Color(1.0, 0.85, 0.2)  # Gold
+			inner.color = Color(1.0, 0.95, 0.5)
+			icon.text = "+++"
+			icon.position = Vector2(-12, -8)
+			icon.add_theme_color_override("font_color", Color(0.5, 0.35, 0.0))
+		3:  # Trap coin - slows player (red aura, looks like bronze)
+			outer.color = Color(0.8, 0.5, 0.2)  # Same as bronze
+			inner.color = Color(1.0, 0.7, 0.4)
+			icon.text = "+"
+			icon.add_theme_color_override("font_color", Color(1, 1, 1))
+			# Add red aura
+			_add_trap_aura(coin)
+		4:  # Shrink power-up (pink) - unlocked at depth
 			outer.color = Color(1.0, 0.4, 0.8)
 			inner.color = Color(1.0, 0.7, 0.9)
 			icon.text = "S"
+			icon.position = Vector2(-6, -8)
 			icon.add_theme_color_override("font_color", Color(0.3, 0, 0.2))
-		2:  # Slow-mo (yellow)
-			outer.color = Color(1.0, 0.9, 0.2)
-			inner.color = Color(1.0, 1.0, 0.6)
+		5:  # Slow-mo (purple) - unlocked at depth
+			outer.color = Color(0.6, 0.3, 0.9)
+			inner.color = Color(0.8, 0.6, 1.0)
 			icon.text = "◷"
-			icon.add_theme_color_override("font_color", Color(0.3, 0.2, 0))
-		3:  # Trap coin (red tint - looks like normal but reddish)
-			outer.color = Color(0.4, 0.7, 0.9)  # Slightly off cyan
-			inner.color = Color(0.6, 0.85, 0.95)
-			icon.text = "+"
-			icon.add_theme_color_override("font_color", Color(1, 0.8, 0.8))
+			icon.position = Vector2(-6, -8)
+			icon.add_theme_color_override("font_color", Color(0.2, 0.1, 0.3))
+
+func _add_trap_aura(coin: Area2D) -> void:
+	# Create a red glowing aura around trap coins
+	var aura = Polygon2D.new()
+	aura.name = "Aura"
+	var aura_points: PackedVector2Array = []
+	for j in range(16):
+		var angle = (TAU / 16) * j
+		aura_points.append(Vector2(cos(angle), sin(angle)) * 20)
+	aura.polygon = aura_points
+	aura.color = Color(1.0, 0.2, 0.1, 0.35)  # Red semi-transparent
+	aura.z_index = -1  # Behind the coin
+	coin.add_child(aura)
+	
+	# Add pulsing animation to aura (store reference to kill later)
+	var tween = create_tween()
+	tween.set_loops()
+	tween.tween_property(aura, "modulate:a", 0.5, 0.4)
+	tween.tween_property(aura, "modulate:a", 1.0, 0.4)
+	coin.set_meta("aura_tween", tween)
+
+func _cleanup_coin_aura(coin: Area2D) -> void:
+	# Kill aura tween if exists
+	if coin.has_meta("aura_tween"):
+		var tween = coin.get_meta("aura_tween") as Tween
+		if tween and tween.is_valid():
+			tween.kill()
+		coin.remove_meta("aura_tween")
 
 func start_game() -> void:
 	is_game_active = true
@@ -353,6 +414,8 @@ func start_game() -> void:
 	shrink_timer = 0.0
 	is_slowmo = false
 	slowmo_timer = 0.0
+	is_slowed_by_trap = false
+	slowdown_trap_timer = 0.0
 	current_wind_force = 0.0
 	current_speed_multiplier = 1.0
 	current_fog_alpha = 0.0
@@ -366,8 +429,11 @@ func start_game() -> void:
 		var center_x = tower_left_margin + tower_width / 2.0
 		player.global_position = Vector2(center_x, 100)
 		player.velocity = Vector2.ZERO
-		player.modulate.a = 1.0
+		player.modulate = Color(1, 1, 1, 1)  # Reset both color and alpha
 		player.scale = original_player_scale
+		# Restore original run speed if it was changed by trap
+		if original_player_speed > 0:
+			player.run_speed = original_player_speed
 		start_y = player.global_position.y
 	
 	# Reset camera
@@ -382,6 +448,7 @@ func start_game() -> void:
 	
 	# Clear coins
 	for coin in active_coins:
+		_cleanup_coin_aura(coin)
 		coin.visible = false
 		coin_pool.append(coin)
 	active_coins.clear()
@@ -431,6 +498,18 @@ func _physics_process(delta: float) -> void:
 			if player:
 				var tween = create_tween()
 				tween.tween_property(player, "scale", original_player_scale, 0.3)
+	
+	# Update slowdown trap effect
+	if is_slowed_by_trap:
+		slowdown_trap_timer -= delta
+		if slowdown_trap_timer <= 0:
+			is_slowed_by_trap = false
+			if player:
+				# Restore original speed
+				player.run_speed = original_player_speed
+				# Remove red tint
+				var tween = create_tween()
+				tween.tween_property(player, "modulate", Color(1, 1, 1), 0.3)
 	
 	# Update difficulty based on depth
 	update_difficulty()
@@ -778,16 +857,32 @@ func maybe_spawn_coin(x: float, y: float) -> void:
 	
 	var coin = coin_pool.pop_back()
 	
-	# Determine coin type based on depth
-	var coin_type = 0  # Normal
+	# Determine coin type with rarity system
+	var coin_type = 0  # Bronze (1.5s) - most common
+	var roll = randf()
+	
+	# Time coins (always available):
+	# Bronze (1.5s): 60% chance
+	# Silver (2.0s): 20% chance  
+	# Gold (2.5s): 10% chance
+	# Trap: 10% chance
+	
+	if roll < 0.60:
+		coin_type = 0  # Bronze - 1.5 sec
+	elif roll < 0.80:
+		coin_type = 1  # Silver - 2.0 sec (rare)
+	elif roll < 0.90:
+		coin_type = 2  # Gold - 2.5 sec (very rare)
+	else:
+		coin_type = 3  # Trap coin - slows player
+	
+	# Power-ups only at deeper depths (replace some time coins)
 	if max_depth >= DEPTH_POWERUPS:
-		var roll = randf()
-		if roll < 0.1:
-			coin_type = 1  # Shrink
-		elif roll < 0.2:
-			coin_type = 2  # Slow-mo
-		elif roll < 0.3:
-			coin_type = 3  # Trap
+		var powerup_roll = randf()
+		if powerup_roll < 0.08:
+			coin_type = 4  # Shrink
+		elif powerup_roll < 0.16:
+			coin_type = 5  # Slow-mo
 	
 	_style_coin(coin, coin_type)
 	coin.global_position = Vector2(x, y)
@@ -861,6 +956,7 @@ func recycle_objects() -> void:
 			coins_to_recycle.append(coin)
 	
 	for coin in coins_to_recycle:
+		_cleanup_coin_aura(coin)
 		coin.visible = false
 		active_coins.erase(coin)
 		coin_pool.append(coin)
@@ -876,26 +972,35 @@ func _on_coin_collected(body: Node2D, coin: Area2D) -> void:
 	var coin_type = coin.get_meta("coin_type", 0)
 	
 	match coin_type:
-		0:  # Normal time coin
+		0:  # Bronze time coin - 1.5 sec
 			coins_collected += 1
-			var bonus_time = randf_range(1.5, 3.0)
-			time_remaining += bonus_time
-			_spawn_particles(coin.global_position, Color(0.3, 1.0, 1.0))
-			_show_time_bonus("+%.1fs" % bonus_time)
-		1:  # Shrink power-up
-			activate_shrink()
-			_spawn_particles(coin.global_position, Color(1.0, 0.4, 0.8))
-		2:  # Slow-mo
-			activate_slowmo()
-			_spawn_particles(coin.global_position, Color(1.0, 0.9, 0.2))
-		3:  # Trap coin
-			time_remaining -= 3.0
-			time_remaining = max(0.1, time_remaining)
+			time_remaining += 1.5
+			_spawn_particles(coin.global_position, Color(0.8, 0.5, 0.2))
+			_show_time_bonus("+1.5s")
+		1:  # Silver time coin - 2.0 sec
+			coins_collected += 1
+			time_remaining += 2.0
+			_spawn_particles(coin.global_position, Color(0.7, 0.75, 0.8))
+			_show_time_bonus("+2.0s")
+		2:  # Gold time coin - 2.5 sec
+			coins_collected += 1
+			time_remaining += 2.5
+			_spawn_particles(coin.global_position, Color(1.0, 0.85, 0.2))
+			_show_time_bonus("+2.5s")
+		3:  # Trap coin - slows player down
+			activate_slowdown_trap()
 			_spawn_particles(coin.global_position, Color(1.0, 0.3, 0.2))
-			_show_time_bonus("-3.0s TRAP!")
+			_show_time_bonus("SLOWED!")
 			if hud:
 				hud.trigger_screen_flash(Color(1.0, 0.2, 0.1, 0.4))
+		4:  # Shrink power-up
+			activate_shrink()
+			_spawn_particles(coin.global_position, Color(1.0, 0.4, 0.8))
+		5:  # Slow-mo power-up
+			activate_slowmo()
+			_spawn_particles(coin.global_position, Color(0.6, 0.3, 0.9))
 	
+	_cleanup_coin_aura(coin)
 	coin.visible = false
 	active_coins.erase(coin)
 	coin_pool.append(coin)
@@ -920,6 +1025,22 @@ func activate_slowmo() -> void:
 	
 	if hud:
 		hud.show_combo_word("SLOW-MO! 3s")
+
+func activate_slowdown_trap() -> void:
+	is_slowed_by_trap = true
+	slowdown_trap_timer = 3.0
+	
+	if player:
+		# Store original speed and slow down horizontal movement
+		original_player_speed = player.run_speed
+		player.run_speed = original_player_speed * 0.4  # 40% of normal speed
+		
+		# Visual feedback - red tint on player
+		var tween = create_tween()
+		tween.tween_property(player, "modulate", Color(1.0, 0.5, 0.5), 0.15)
+	
+	if hud:
+		hud.show_combo_word("SLOWED! 3s")
 
 func _show_time_bonus(text: String) -> void:
 	if hud:
@@ -985,7 +1106,9 @@ func update_hud() -> void:
 		hud.set_distance(max_depth)
 		
 		# Show current zone/effect
-		if is_slowmo:
+		if is_slowed_by_trap:
+			hud.set_zone("SLOWED!")
+		elif is_slowmo:
 			hud.set_zone("SLOW-MO")
 		elif is_shrunk:
 			hud.set_zone("SHRUNK")
