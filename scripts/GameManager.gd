@@ -20,6 +20,9 @@ var best_distance: float = 0.0
 # Danger indicator
 var danger_level: float = 0.0
 
+# Current game mode ("tower" or "freefall")
+var current_game_mode: String = "tower"
+
 # Skin Manager
 var skin_manager: Node = null
 
@@ -81,7 +84,15 @@ func _submit_to_leaderboard() -> void:
 	if skin_manager:
 		skin_id = skin_manager.get_equipped_skin()
 	
-	leaderboard.submit_score(current_score, current_distance, skin_id)
+	leaderboard.submit_score(current_score, current_distance, skin_id, current_game_mode)
+
+## Set the current game mode for leaderboard submission
+func set_game_mode(mode: String) -> void:
+	current_game_mode = mode
+
+## Get the current game mode
+func get_game_mode() -> String:
+	return current_game_mode
 
 func pause_game() -> void:
 	is_paused = true

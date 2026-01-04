@@ -110,6 +110,7 @@ func _ready() -> void:
 	
 	if touch_controls:
 		touch_controls.set_player(player)
+		touch_controls.set_freefall_mode(true)  # More dominant horizontal, stricter jump
 	
 	if hud:
 		hud.set_zone("TIME ATTACK")
@@ -398,6 +399,7 @@ func _cleanup_coin_aura(coin: Area2D) -> void:
 		coin.remove_meta("aura_tween")
 
 func start_game() -> void:
+	GameManager.set_game_mode("freefall")
 	is_game_active = true
 	time_remaining = starting_time
 	depth_reached = 0.0
@@ -1130,8 +1132,12 @@ func _on_time_up() -> void:
 		return
 	
 	is_game_active = false
-	GameManager.is_game_active = false
 	Engine.time_scale = 1.0
+	
+	# Ensure GameManager has the final score/distance before ending
+	GameManager.current_score = score
+	GameManager.current_distance = max_depth
+	GameManager.end_game()
 	
 	if game_over_screen:
 		game_over_screen.show_game_over(score, max_depth, GameManager.best_score, "DEPTH")
@@ -1141,8 +1147,12 @@ func _on_player_died() -> void:
 		return
 	
 	is_game_active = false
-	GameManager.is_game_active = false
 	Engine.time_scale = 1.0
+	
+	# Ensure GameManager has the final score/distance before ending
+	GameManager.current_score = score
+	GameManager.current_distance = max_depth
+	GameManager.end_game()
 	
 	if game_over_screen:
 		game_over_screen.show_game_over(score, max_depth, GameManager.best_score, "DEPTH")

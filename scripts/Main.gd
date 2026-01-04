@@ -175,6 +175,7 @@ func connect_signals() -> void:
 		game_over_screen.menu_requested.connect(_on_menu_requested)
 
 func start_game() -> void:
+	GameManager.set_game_mode("tower")
 	GameManager.start_game()
 	current_zone = ""
 	

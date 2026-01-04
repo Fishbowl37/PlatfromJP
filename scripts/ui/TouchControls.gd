@@ -101,3 +101,8 @@ func show_controls() -> void:
 func hide_controls() -> void:
 	if joystick:
 		joystick.visible = false
+
+## Set Free Fall mode for controls - more dominant horizontal, stricter jump
+func set_freefall_mode(enabled: bool) -> void:
+	if joystick:
+		joystick.set_freefall_mode(enabled)

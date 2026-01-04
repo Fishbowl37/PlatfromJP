@@ -21,8 +21,20 @@ var last_y: float = 0.0  # Track Y movement for flick detection
 const BASE_SENSITIVITY: float = 0.05
 var horizontal_sensitivity: float = 0.02  # Calculated from user setting
 
-const JUMP_FLICK_THRESHOLD: float = 8.0      # Tiny flick up = jump
-const JUMP_VELOCITY_THRESHOLD: float = 3.0   # Or fast upward movement = jump
+# Normal mode jump thresholds (tower climbing)
+const NORMAL_JUMP_FLICK_THRESHOLD: float = 8.0      # Tiny flick up = jump
+const NORMAL_JUMP_VELOCITY_THRESHOLD: float = 3.0   # Or fast upward movement = jump
+
+# Free Fall mode - much stricter jump thresholds, more horizontal sensitivity
+const FREEFALL_JUMP_FLICK_THRESHOLD: float = 45.0     # Need clear upward swipe
+const FREEFALL_JUMP_VELOCITY_THRESHOLD: float = 20.0  # Or very fast upward movement
+const FREEFALL_HORIZONTAL_MULTIPLIER: float = 1.8     # More responsive L/R
+
+# Current thresholds (adjusted based on mode)
+var jump_flick_threshold: float = NORMAL_JUMP_FLICK_THRESHOLD
+var jump_velocity_threshold: float = NORMAL_JUMP_VELOCITY_THRESHOLD
+var horizontal_multiplier: float = 1.0
+var is_freefall_mode: bool = false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -40,6 +52,19 @@ func update_sensitivity(value: float) -> void:
 	# Map user setting (0.1 to 1.0) to actual sensitivity
 	# Higher value = more sensitive (less movement needed)
 	horizontal_sensitivity = BASE_SENSITIVITY * value
+
+## Set Free Fall mode - adjusts controls for falling gameplay
+## In Free Fall: horizontal is more dominant, jump requires clear upward gesture
+func set_freefall_mode(enabled: bool) -> void:
+	is_freefall_mode = enabled
+	if enabled:
+		jump_flick_threshold = FREEFALL_JUMP_FLICK_THRESHOLD
+		jump_velocity_threshold = FREEFALL_JUMP_VELOCITY_THRESHOLD
+		horizontal_multiplier = FREEFALL_HORIZONTAL_MULTIPLIER
+	else:
+		jump_flick_threshold = NORMAL_JUMP_FLICK_THRESHOLD
+		jump_velocity_threshold = NORMAL_JUMP_VELOCITY_THRESHOLD
+		horizontal_multiplier = 1.0
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -93,26 +118,32 @@ func _update_touch(drag: InputEventScreenDrag) -> void:
 	var delta = pos - touch_start_position
 	
 	# HORIZONTAL - instant response with configurable sensitivity
-	current_horizontal = clamp(delta.x * horizontal_sensitivity, -1.0, 1.0)
+	# Apply horizontal multiplier (higher in Free Fall mode for more responsive L/R)
+	var effective_sensitivity = horizontal_sensitivity * horizontal_multiplier
+	current_horizontal = clamp(delta.x * effective_sensitivity, -1.0, 1.0)
 	joystick_input.emit(Vector2(current_horizontal, 0))
 	
-	# JUMP - Two ways to trigger (very forgiving):
-	# 1. Position-based: finger is above start point
+	# JUMP - Two ways to trigger:
+	# 1. Position-based: finger is above start point by threshold
 	# 2. Velocity-based: finger moving upward quickly
+	# In Free Fall mode, these thresholds are much higher (requires deliberate swipe up)
 	
 	var y_velocity = last_y - pos.y  # Positive = moving up
 	var y_offset = touch_start_position.y - pos.y  # Positive = above start
 	
 	if can_jump:
 		# Jump if: flicked up OR moved up enough from start
-		if y_velocity > JUMP_VELOCITY_THRESHOLD or y_offset > JUMP_FLICK_THRESHOLD:
+		if y_velocity > jump_velocity_threshold or y_offset > jump_flick_threshold:
 			jump_triggered.emit()
 			can_jump = false
 			# Reset the start position so they can jump again easily
 			touch_start_position.y = pos.y
 	else:
-		# Allow jump again when finger moves down a tiny bit
-		if y_velocity < -1.0 or y_offset < 3.0:
+		# Allow jump again when finger moves down
+		# In Free Fall mode, need to move down more before can jump again
+		var reset_velocity = -2.0 if is_freefall_mode else -1.0
+		var reset_offset = 10.0 if is_freefall_mode else 3.0
+		if y_velocity < reset_velocity or y_offset < reset_offset:
 			can_jump = true
 	
 	last_y = pos.y

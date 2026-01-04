@@ -10,6 +10,16 @@ var scores_container: VBoxContainer = null
 var loading_label: Label = null
 var player_rank_label: Label = null
 
+# Tab system
+var current_mode: String = "tower"
+var tab_buttons: Dictionary = {}
+var tab_container: HBoxContainer = null
+
+# Panel references for repositioning
+var panel_x: float = 0.0
+var panel_y: float = 0.0
+var panel_width: float = 0.0
+
 # Reference to managers
 var leaderboard_manager: Node = null
 var auth_manager: Node = null
@@ -44,12 +54,18 @@ func open_panel() -> void:
 	is_open = true
 	visible = true
 	score_items.clear()
+	current_mode = "tower"  # Default to tower mode
 	
 	var vp = get_viewport().get_visible_rect().size
 	var pw = 340.0
-	var ph = 520.0
+	var ph = 560.0  # Slightly taller to accommodate tabs
 	var px = (vp.x - pw) / 2.0
 	var py = (vp.y - ph) / 2.0
+	
+	# Store for later reference
+	panel_x = px
+	panel_y = py
+	panel_width = pw
 	
 	# === OVERLAY ===
 	var overlay = ColorRect.new()
@@ -101,10 +117,13 @@ func open_panel() -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
 	add_child(title)
 	
+	# === TAB BUTTONS ===
+	_create_tabs(px, py + 48, pw)
+	
 	# === PLAYER RANK DISPLAY ===
 	player_rank_label = Label.new()
 	player_rank_label.name = "PlayerRankLabel"
-	player_rank_label.position = Vector2(px + 15, py + 45)
+	player_rank_label.position = Vector2(px + 15, py + 95)
 	player_rank_label.size = Vector2(pw - 30, 24)
 	player_rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	player_rank_label.add_theme_font_size_override("font_size", 13)
@@ -113,7 +132,7 @@ func open_panel() -> void:
 	_update_player_rank_label()
 	
 	# === COLUMN HEADERS ===
-	var header_y = py + 72
+	var header_y = py + 122
 	_create_header_label("#", px + 15, header_y, 30, HORIZONTAL_ALIGNMENT_CENTER)
 	_create_header_label("PLAYER", px + 50, header_y, 160, HORIZONTAL_ALIGNMENT_LEFT)
 	_create_header_label("SCORE", px + 215, header_y, 110, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -128,7 +147,7 @@ func open_panel() -> void:
 	# === SCROLL CONTAINER FOR SCORES ===
 	scroll_container = ScrollContainer.new()
 	scroll_container.position = Vector2(px + 10, header_y + 28)
-	scroll_container.size = Vector2(pw - 20, ph - 140)
+	scroll_container.size = Vector2(pw - 20, ph - 190)
 	scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll_container)
 	
@@ -178,7 +197,79 @@ func open_panel() -> void:
 	refresh_btn.add_theme_color_override("font_color", Color(0.8, 0.75, 0.9))
 	add_child(refresh_btn)
 	
-	# Fetch leaderboard data
+	# Fetch leaderboard data for current mode
+	_fetch_leaderboard()
+
+func _create_tabs(x: float, y: float, width: float) -> void:
+	tab_container = HBoxContainer.new()
+	tab_container.position = Vector2(x + 15, y)
+	tab_container.size = Vector2(width - 30, 38)
+	tab_container.add_theme_constant_override("separation", 8)
+	tab_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	add_child(tab_container)
+	
+	# Tower mode tab
+	var tower_btn = _create_tab_button("🗼 TOWER", "tower")
+	tab_container.add_child(tower_btn)
+	tab_buttons["tower"] = tower_btn
+	
+	# Free Fall mode tab
+	var freefall_btn = _create_tab_button("⬇️ FREE FALL", "freefall")
+	tab_container.add_child(freefall_btn)
+	tab_buttons["freefall"] = freefall_btn
+	
+	# Update initial tab appearance
+	_update_tab_styles()
+
+func _create_tab_button(text: String, mode: String) -> Button:
+	var btn = Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(140, 36)
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.pressed.connect(_on_tab_pressed.bind(mode))
+	return btn
+
+func _update_tab_styles() -> void:
+	for mode in tab_buttons:
+		var btn = tab_buttons[mode] as Button
+		var is_active = mode == current_mode
+		
+		var style = StyleBoxFlat.new()
+		if is_active:
+			# Active tab - highlighted
+			style.bg_color = Color(0.25, 0.4, 0.55, 0.95)
+			style.border_color = Color(0.5, 0.8, 1.0, 0.9)
+			style.set_border_width_all(2)
+			btn.add_theme_color_override("font_color", Color(1, 1, 1))
+		else:
+			# Inactive tab - muted
+			style.bg_color = Color(0.15, 0.12, 0.22, 0.8)
+			style.border_color = Color(0.3, 0.25, 0.4, 0.6)
+			style.set_border_width_all(1)
+			btn.add_theme_color_override("font_color", Color(0.6, 0.55, 0.7))
+		
+		style.set_corner_radius_all(10)
+		btn.add_theme_stylebox_override("normal", style)
+		
+		# Hover style
+		var hover_style = StyleBoxFlat.new()
+		if is_active:
+			hover_style.bg_color = Color(0.3, 0.45, 0.6, 0.95)
+			hover_style.border_color = Color(0.6, 0.85, 1.0, 1.0)
+			hover_style.set_border_width_all(2)
+		else:
+			hover_style.bg_color = Color(0.2, 0.17, 0.28, 0.9)
+			hover_style.border_color = Color(0.4, 0.35, 0.5, 0.8)
+			hover_style.set_border_width_all(1)
+		hover_style.set_corner_radius_all(10)
+		btn.add_theme_stylebox_override("hover", hover_style)
+
+func _on_tab_pressed(mode: String) -> void:
+	if mode == current_mode:
+		return
+	
+	current_mode = mode
+	_update_tab_styles()
 	_fetch_leaderboard()
 
 func _create_header_label(text: String, x: float, y: float, width: float, align: HorizontalAlignment) -> void:
@@ -199,7 +290,7 @@ func _update_player_rank_label() -> void:
 		player_rank_label.text = ""
 		return
 	
-	var rank = leaderboard_manager.get_player_rank()
+	var rank = leaderboard_manager.get_player_rank(current_mode)
 	var display_name = ""
 	if auth_manager:
 		display_name = auth_manager.get_display_name()
@@ -210,26 +301,45 @@ func _update_player_rank_label() -> void:
 			player_rank_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		elif rank <= 10:
 			player_rank_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		else:
+			player_rank_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	else:
 		player_rank_label.text = "Playing as: %s" % display_name if display_name else "Not ranked yet"
+		player_rank_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 
 func _fetch_leaderboard() -> void:
 	if loading_label:
+		loading_label.text = "Loading..."
+		loading_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 		loading_label.visible = true
 	
+	# Clear existing scores
+	if scores_container:
+		for child in scores_container.get_children():
+			child.queue_free()
+	score_items.clear()
+	
 	if leaderboard_manager:
-		leaderboard_manager.fetch_leaderboard()
+		leaderboard_manager.fetch_leaderboard(current_mode)
 	else:
 		_show_error("Leaderboard not available")
 
-func _on_leaderboard_loaded(scores: Array) -> void:
+func _on_leaderboard_loaded(scores: Array, game_mode: String) -> void:
+	# Ignore if panel is closed or not for our current mode
+	if not is_open or game_mode != current_mode:
+		return
+	
 	if loading_label:
 		loading_label.visible = false
 	
 	_update_player_rank_label()
 	_populate_scores(scores)
 
-func _on_leaderboard_error(error: String) -> void:
+func _on_leaderboard_error(error: String, game_mode: String) -> void:
+	# Ignore if panel is closed or not for our current mode
+	if not is_open or game_mode != current_mode:
+		return
+	
 	_show_error(error)
 
 func _show_error(message: String) -> void:
@@ -239,6 +349,10 @@ func _show_error(message: String) -> void:
 		loading_label.add_theme_color_override("font_color", Color(1, 0.5, 0.5))
 
 func _populate_scores(scores: Array) -> void:
+	# Safety check - panel might have been closed
+	if not scores_container:
+		return
+	
 	# Clear existing items
 	for child in scores_container.get_children():
 		child.queue_free()
@@ -246,7 +360,10 @@ func _populate_scores(scores: Array) -> void:
 	
 	if scores.is_empty():
 		var empty_label = Label.new()
-		empty_label.text = "No scores yet!\nBe the first to climb!"
+		if current_mode == "tower":
+			empty_label.text = "No scores yet!\nBe the first to climb!"
+		else:
+			empty_label.text = "No scores yet!\nBe the first to fall!"
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.add_theme_font_size_override("font_size", 14)
 		empty_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
@@ -366,7 +483,7 @@ func _on_refresh_pressed() -> void:
 	score_items.clear()
 	
 	if leaderboard_manager:
-		leaderboard_manager.fetch_leaderboard(true)
+		leaderboard_manager.fetch_leaderboard(current_mode, true)
 
 func close_panel() -> void:
 	if not is_open:
@@ -378,6 +495,8 @@ func close_panel() -> void:
 	player_rank_label = null
 	scroll_container = null
 	scores_container = null
+	tab_container = null
+	tab_buttons.clear()
 	score_items.clear()
 	
 	for child in get_children():
@@ -390,4 +509,3 @@ func _on_overlay_input(event: InputEvent) -> void:
 		close_panel()
 	elif event is InputEventScreenTouch and event.pressed:
 		close_panel()
-
