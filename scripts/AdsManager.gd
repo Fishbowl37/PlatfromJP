@@ -32,6 +32,10 @@ signal banner_visibility_changed(visible: bool)
 ## Reference to RemoteConfig autoload
 var remote_config: Node = null
 
+## Fallback mode: Enable ads even if RemoteConfig isn't configured
+## Set to false when you have Firebase RemoteConfig properly set up
+var use_fallback_ads: bool = true
+
 ## Tracking variables
 var game_over_count: int = 0
 var session_count: int = 0
@@ -77,6 +81,9 @@ func on_game_over() -> bool:
 
 ## Check if "continue game" rewarded ad is available
 func can_show_continue_ad() -> bool:
+	# Fallback mode: Always allow if RemoteConfig isn't available
+	if use_fallback_ads and (not remote_config or not remote_config.is_rewarded_enabled()):
+		return true
 	if not remote_config:
 		return false
 	return remote_config.is_reward_type_enabled("continue")
@@ -89,6 +96,9 @@ func show_continue_ad() -> void:
 
 ## Check if "double coins" rewarded ad is available
 func can_show_double_coins_ad() -> bool:
+	# Fallback mode: Always allow if RemoteConfig isn't available
+	if use_fallback_ads and (not remote_config or not remote_config.is_rewarded_enabled()):
+		return true
 	if not remote_config:
 		return false
 	return remote_config.is_reward_type_enabled("double_coins")
@@ -107,6 +117,9 @@ func get_double_coins_multiplier() -> float:
 
 ## Check if banner should show in menu
 func should_show_banner_in_menu() -> bool:
+	# Fallback mode: Allow banner if RemoteConfig isn't available
+	if use_fallback_ads and (not remote_config or not remote_config.is_banner_enabled()):
+		return true
 	if not remote_config:
 		return false
 	return remote_config.is_banner_enabled()
@@ -162,6 +175,17 @@ func on_ad_failed(ad_type: String, error: String) -> void:
 # =============================================================================
 
 func _should_show_interstitial() -> bool:
+	# Fallback mode: Show ads every 3rd game over if RemoteConfig isn't available
+	if use_fallback_ads and (not remote_config or not remote_config.is_interstitial_enabled()):
+		# Simple fallback: Show every 3rd game over, with 30 second cooldown
+		var time_since_last = Time.get_unix_time_from_system() - last_interstitial_time
+		if time_since_last < 30:  # 30 second cooldown
+			return false
+		if session_count <= 1:  # Skip first session
+			return false
+		return game_over_count > 0 and game_over_count % 3 == 0
+	
+	# Normal mode: Use RemoteConfig settings
 	if not remote_config:
 		return false
 	
