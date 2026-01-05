@@ -18,9 +18,9 @@ const TEST_INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712"
 const TEST_REWARDED_ID = "ca-app-pub-3940256099942544/5224354917"
 
 ## Your real IDs - REPLACE THESE before publishing!
-var banner_id: String = TEST_BANNER_ID
-var interstitial_id: String = TEST_INTERSTITIAL_ID
-var rewarded_id: String = TEST_REWARDED_ID
+var banner_id: String = "ca-app-pub-2751343799151510/7152392744"
+var interstitial_id: String = "ca-app-pub-2751343799151510/6452203527"
+var rewarded_id: String = "ca-app-pub-2751343799151510/6748728750"
 
 ## Set to false when you have real ad IDs and are ready to publish
 var use_test_ads: bool = true
