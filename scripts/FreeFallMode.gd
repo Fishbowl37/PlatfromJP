@@ -1152,10 +1152,59 @@ func _on_player_died() -> void:
 	# Ensure GameManager has the final score/distance before ending
 	GameManager.current_score = score
 	GameManager.current_distance = max_depth
-	GameManager.end_game()
 	
+	# Store game over data
+	_pending_game_over_data = {
+		"score": score,
+		"distance": max_depth,
+		"best_score": GameManager.best_score
+	}
+	
+	# Check if an ad will be shown - if so, delay game over screen
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		
+		# Connect to interstitial closed signal
+		if not ads_manager.interstitial_closed.is_connected(_on_interstitial_closed):
+			ads_manager.interstitial_closed.connect(_on_interstitial_closed)
+		
+		# Call GameManager.end_game() which triggers AdsManager.on_game_over()
+		GameManager.end_game()
+		
+		# Wait a moment to see if ad was triggered
+		await get_tree().create_timer(0.2).timeout
+		
+		# Check if ad is actually showing
+		if ads_manager.is_showing_interstitial:
+			# Ad is showing, wait for it to close
+			pass
+		else:
+			# No ad was shown, show game over screen immediately
+			_show_game_over_screen()
+	else:
+		# No AdsManager, just end game normally
+		GameManager.end_game()
+		_show_game_over_screen()
+
+var _pending_game_over_data: Dictionary = {}
+
+func _show_game_over_screen() -> void:
 	if game_over_screen:
-		game_over_screen.show_game_over(score, max_depth, GameManager.best_score, "DEPTH")
+		var score = _pending_game_over_data.get("score", GameManager.current_score)
+		var distance = _pending_game_over_data.get("distance", GameManager.current_distance)
+		var best_score = _pending_game_over_data.get("best_score", GameManager.best_score)
+		
+		game_over_screen.show_game_over(score, distance, best_score, "DEPTH")
+		_pending_game_over_data.clear()
+
+func _on_interstitial_closed() -> void:
+	# Ad was dismissed, now show game over screen
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		if ads_manager.interstitial_closed.is_connected(_on_interstitial_closed):
+			ads_manager.interstitial_closed.disconnect(_on_interstitial_closed)
+	
+	_show_game_over_screen()
 
 func _on_restart() -> void:
 	Engine.time_scale = 1.0

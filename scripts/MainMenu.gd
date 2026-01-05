@@ -39,12 +39,26 @@ func _ready() -> void:
 	_setup_buttons()
 	_setup_gem_display()
 	_setup_remote_config()
+	_setup_banner_ads()
 	_start_floating_animation()
 	_animate_entrance()
 
 func _exit_tree() -> void:
 	if float_tween:
 		float_tween.kill()
+	
+	# Hide banner when leaving menu
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		ads_manager.set_banner_visible(false)
+
+func _notification(what: int) -> void:
+	# Show banner when menu becomes visible
+	if what == NOTIFICATION_VISIBILITY_CHANGED and visible:
+		if has_node("/root/AdsManager"):
+			var ads_manager = get_node("/root/AdsManager")
+			if ads_manager.should_show_banner_in_menu():
+				ads_manager.set_banner_visible(true)
 
 func _setup_panels() -> void:
 	# Setup settings panel
@@ -429,6 +443,7 @@ func _setup_remote_config() -> void:
 		var remote_config = get_node("/root/RemoteConfig")
 		remote_config.config_loaded.connect(_on_remote_config_loaded)
 		remote_config.announcement_received.connect(_on_announcement_received)
+		remote_config.ads_config_loaded.connect(_on_ads_config_loaded)
 		
 		# If already loaded, apply immediately
 		if remote_config.is_loaded:
@@ -436,6 +451,25 @@ func _setup_remote_config() -> void:
 	else:
 		# RemoteConfig not available, show all features
 		pass
+
+func _setup_banner_ads() -> void:
+	# Wait a moment for AdsManager to initialize
+	await get_tree().create_timer(1.0).timeout
+	
+	# Check if banner should be shown
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		if ads_manager.should_show_banner_in_menu():
+			ads_manager.set_banner_visible(true)
+
+func _on_ads_config_loaded(_ads_config: Dictionary) -> void:
+	# Update banner visibility when ads config changes
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		if ads_manager.should_show_banner_in_menu():
+			ads_manager.set_banner_visible(true)
+		else:
+			ads_manager.set_banner_visible(false)
 
 func _on_remote_config_loaded(_config: Dictionary) -> void:
 	_apply_feature_flags()
@@ -599,6 +633,11 @@ func _animate_entrance() -> void:
 		tween.parallel().tween_property(gem_container, "modulate:a", 1.0, 0.3)
 
 func _on_play_pressed() -> void:
+	# Hide banner when starting game
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		ads_manager.set_banner_visible(false)
+	
 	_button_press_effect(play_button)
 	var tween = create_tween()
 	tween.set_trans(Tween.TRANS_QUAD)
@@ -610,6 +649,11 @@ func _go_to_game() -> void:
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 func _on_free_fall_pressed() -> void:
+	# Hide banner when starting game
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		ads_manager.set_banner_visible(false)
+	
 	_button_press_effect(free_fall_button)
 	var tween = create_tween()
 	tween.set_trans(Tween.TRANS_QUAD)

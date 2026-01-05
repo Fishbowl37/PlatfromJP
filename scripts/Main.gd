@@ -249,17 +249,62 @@ func _on_player_fell() -> void:
 		player.die()
 
 func end_game() -> void:
-	GameManager.end_game()
-	
 	if game_camera:
 		game_camera.pause_scrolling()
 	
+	# Store game over data
+	_pending_game_over_data = {
+		"score": GameManager.current_score,
+		"distance": GameManager.current_distance,
+		"best_score": GameManager.best_score
+	}
+	
+	# Check if an ad will be shown - if so, delay game over screen
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		
+		# Connect to interstitial closed signal before calling end_game
+		if not ads_manager.interstitial_closed.is_connected(_on_interstitial_closed):
+			ads_manager.interstitial_closed.connect(_on_interstitial_closed)
+		
+		# Call GameManager.end_game() which triggers AdsManager.on_game_over()
+		# This will show the ad if conditions are met
+		GameManager.end_game()
+		
+		# Wait a moment to see if ad was triggered and actually shown
+		await get_tree().create_timer(0.5).timeout
+		
+		# Check if ad is actually showing
+		if ads_manager.is_showing_interstitial:
+			# Ad is showing, wait for it to close (handled by _on_interstitial_closed)
+			pass
+		else:
+			# No ad was shown, show game over screen immediately
+			_show_game_over_screen()
+	else:
+		# No AdsManager, just end game normally
+		GameManager.end_game()
+		_show_game_over_screen()
+
+var _pending_game_over_data: Dictionary = {}
+
+func _show_game_over_screen() -> void:
 	if game_over_screen:
-		game_over_screen.show_game_over(
-			GameManager.current_score,
-			GameManager.current_distance,
-			GameManager.best_score
-		)
+		var score = _pending_game_over_data.get("score", GameManager.current_score)
+		var distance = _pending_game_over_data.get("distance", GameManager.current_distance)
+		var best_score = _pending_game_over_data.get("best_score", GameManager.best_score)
+		
+		game_over_screen.show_game_over(score, distance, best_score)
+		_pending_game_over_data.clear()
+
+func _on_interstitial_closed() -> void:
+	# Ad was dismissed, now show game over screen
+	if has_node("/root/AdsManager"):
+		var ads_manager = get_node("/root/AdsManager")
+		if ads_manager.interstitial_closed.is_connected(_on_interstitial_closed):
+			ads_manager.interstitial_closed.disconnect(_on_interstitial_closed)
+	
+	_show_game_over_screen()
 
 func _on_restart_requested() -> void:
 	restart_game()

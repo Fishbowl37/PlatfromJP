@@ -142,7 +142,8 @@ func is_interstitial_enabled() -> bool:
 
 ## Get interstitial frequency (show every N game overs)
 func get_interstitial_frequency() -> int:
-	return int(ads_config.get("interstitial_frequency", 3))
+	var freq = ads_config.get("interstitial_frequency", 3)
+	return int(freq)
 
 ## Get interstitial cooldown in seconds
 func get_interstitial_cooldown() -> int:
@@ -312,11 +313,21 @@ func _parse_firestore_document(doc: Dictionary) -> Dictionary:
 func _parse_firestore_value(value: Dictionary) -> Variant:
 	# Firestore wraps values in type objects
 	if value.has("stringValue"):
-		return value["stringValue"]
+		var str_val = value["stringValue"]
+		# Try to convert string numbers to int/float
+		if str_val.is_valid_int():
+			return int(str_val)
+		elif str_val.is_valid_float():
+			return float(str_val)
+		return str_val
 	elif value.has("integerValue"):
 		return int(value["integerValue"])
 	elif value.has("doubleValue"):
-		return float(value["doubleValue"])
+		var double_val = value["doubleValue"]
+		# Convert to int if it's a whole number (for frequency values)
+		if double_val == int(double_val):
+			return int(double_val)
+		return float(double_val)
 	elif value.has("booleanValue"):
 		return value["booleanValue"]
 	elif value.has("nullValue"):

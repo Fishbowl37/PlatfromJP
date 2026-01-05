@@ -24,6 +24,8 @@ signal rewarded_ad_completed(reward_type: String)
 signal rewarded_ad_skipped(reward_type: String)
 ## Emitted when banner visibility should change
 signal banner_visibility_changed(visible: bool)
+## Emitted when interstitial ad is closed/dismissed
+signal interstitial_closed
 
 # =============================================================================
 # STATE
@@ -36,11 +38,16 @@ var remote_config: Node = null
 ## Set to false when you have Firebase RemoteConfig properly set up
 var use_fallback_ads: bool = true
 
+## Fallback interstitial frequency (show every N game overs)
+## Change this to adjust how often ads show in fallback mode
+var fallback_interstitial_frequency: int = 3
+
 ## Tracking variables
 var game_over_count: int = 0
 var session_count: int = 0
 var last_interstitial_time: int = 0
 var pending_reward_type: String = ""
+var is_showing_interstitial: bool = false
 
 ## Session persistence
 const SESSION_SAVE_PATH = "user://ads_session.cfg"
@@ -151,6 +158,8 @@ func reset_game_over_count() -> void:
 ## Call when interstitial is closed (by user or after display)
 func on_interstitial_closed() -> void:
 	last_interstitial_time = Time.get_unix_time_from_system()
+	is_showing_interstitial = false
+	interstitial_closed.emit()
 
 ## Call when rewarded ad completes (user watched the full ad)
 func on_rewarded_completed() -> void:
@@ -169,6 +178,10 @@ func on_ad_failed(ad_type: String, error: String) -> void:
 	push_warning("AdsManager: %s ad failed - %s" % [ad_type, error])
 	if ad_type == "rewarded":
 		pending_reward_type = ""
+	elif ad_type == "interstitial":
+		# If interstitial failed, we're not showing it anymore
+		is_showing_interstitial = false
+		interstitial_closed.emit()
 
 # =============================================================================
 # INTERNAL LOGIC
@@ -183,7 +196,7 @@ func _should_show_interstitial() -> bool:
 			return false
 		if session_count <= 1:  # Skip first session
 			return false
-		return game_over_count > 0 and game_over_count % 3 == 0
+		return game_over_count > 0 and game_over_count % fallback_interstitial_frequency == 0
 	
 	# Normal mode: Use RemoteConfig settings
 	if not remote_config:
@@ -213,6 +226,7 @@ func _should_show_interstitial() -> bool:
 func _request_interstitial() -> void:
 	last_interstitial_time = Time.get_unix_time_from_system()
 	show_interstitial_requested.emit()
+	# Don't set is_showing_interstitial yet - wait until ad is actually shown
 
 func _request_rewarded(reward_type: String) -> void:
 	pending_reward_type = reward_type
